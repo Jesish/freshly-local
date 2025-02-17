@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import API from "../utils/axiosInstance";
 // import { Leaf } from 'lucide-react';
 
 const Signup = () => {
@@ -12,6 +13,8 @@ const Signup = () => {
     farmLocation: "",
     termsAccepted: false,
   });
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -21,9 +24,23 @@ const Signup = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await API.post("/users/signup", formData);
+      // Assuming your backend responds with a success message or token
+      if (response.status === 200) {
+        // Handle success - Redirect to login or homepage, etc.
+        console.log("Account created successfully:", response.data);
+      }
+    } catch (err) {
+      setError(err.response ? err.response.data.msg : "Server error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -232,12 +249,14 @@ const Signup = () => {
             </a>
           </label>
         </div>
+        {error && <p className="text-red-500">{error}</p>}
 
         <button
           type="submit"
           className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors"
+          disabled={loading}
         >
-          Create Account
+          {loading ? "Creating Account..." : "Create Account"}
         </button>
       </form>
     </div>

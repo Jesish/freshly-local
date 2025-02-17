@@ -13,7 +13,7 @@ import {
   Leaf,
 } from "lucide-react";
 
-const Dashboard = () => {
+const ManageProducts = () => {
   const stats = [
     {
       icon: <Package className="w-5 h-5" />,
@@ -41,14 +41,14 @@ const Dashboard = () => {
     {
       icon: <Home className="w-5 h-5" />,
       label: "Dashboard",
-      bgColor: "#E3F6E5",
-      textColor: "text-green-700",
+      bgColor: "transparent",
+      textColor: "text-white",
     },
     {
       icon: <Box className="w-5 h-5" />,
       label: "Manage Products",
-      bgColor: "transparent",
-      textColor: "text-white",
+      bgColor: "#E3F6E5", // Greenish background for "Manage Products"
+      textColor: "text-green-700", // Green text color for active state
     },
     {
       icon: <ClipboardList className="w-5 h-5" />,
@@ -102,9 +102,9 @@ const Dashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 bg-[#E3F6E5]">
         <div className="mb-8">
-          <h2 className="text-2xl font-semibold">Welcome, hari ram!</h2>
+          <h2 className="text-2xl font-semibold">Manage Products</h2>
         </div>
 
         {/* Stats Grid */}
@@ -144,4 +144,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default ManageProducts;
