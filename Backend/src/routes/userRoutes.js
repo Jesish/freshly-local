@@ -1,5 +1,12 @@
 const express = require("express");
-const { signup, login, getProfile } = require("../controllers/userController");
+const {
+  signup,
+  login,
+  getProfile,
+  getAllFarmers,
+} = require("../controllers/userController");
+// const { signup, login, getProfile,} = require("../controllers/userController");
+
 const router = express.Router();
 const protect = require("../middleware/authMiddleware");
 
@@ -10,5 +17,6 @@ router.post("/signup", signup);
 router.post("/login", login);
 
 router.get("/profile", protect, getProfile); // Protect this route
+router.get("/farmers", protect, getAllFarmers); //get allfarmers
 
 module.exports = router;

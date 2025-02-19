@@ -89,4 +89,28 @@ const getProfile = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getProfile };
+//to get all farmers
+const getAllFarmers = async (req, res) => {
+  try {
+    // Check if the user is a consumer (not a farmer)
+    if (req.user.userType !== "consumer") {
+      return res
+        .status(403)
+        .json({ msg: "Access denied, only consumers can view farmers" });
+    }
+
+    // Fetch all farmers
+    const farmers = await User.find({ userType: "farmer" }).select(
+      "name email"
+    );
+    res.json(farmers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+
+
+
+module.exports = { signup, login, getProfile, getAllFarmers };
