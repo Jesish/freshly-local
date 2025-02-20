@@ -1,7 +1,11 @@
 import React from "react";
-import { Search, ShoppingCart } from "lucide-react";
+import { Search, ShoppingCart, Home, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const LandingPage = () => {
+  const navigate = useNavigate();
+  const token = localStorage.getItem("token"); // Check if token exists
+
   const farms = [
     {
       id: 1,
@@ -38,17 +42,24 @@ const LandingPage = () => {
             Freshly Local
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-            Start Selling
-          </button>
-          <button className="px-4 py-2 text-gray-600 hover:text-gray-800">
-            Login
-          </button>
-          <button className="text-gray-600 hover:text-gray-800">
-            <ShoppingCart className="w-6 h-6" />
-          </button>
-        </div>
+
+        {/* Conditionally Render Navigation */}
+        {!token ? (
+          <div className="flex items-center gap-4">
+            <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+              Start Selling
+            </button>
+            <button
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              onClick={() => navigate("/login")}
+            >
+              Login
+            </button>
+            <button className="text-gray-600 hover:text-gray-800">
+              <ShoppingCart className="w-6 h-6" />
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {/* Hero Section */}
@@ -111,6 +122,33 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Bottom Navigation (Only if Token Exists) */}
+      {token && (
+        <nav className="fixed bottom-0 left-0 w-full bg-white border-t flex justify-around py-3 text-gray-600">
+          <button
+            onClick={() => navigate("/home")}
+            className="flex flex-col items-center"
+          >
+            <Home className="w-5 h-5" />
+            <span className="text-xs">Home</span>
+          </button>
+          <button
+            onClick={() => navigate("/account")}
+            className="flex flex-col items-center"
+          >
+            <User className="w-5 h-5" />
+            <span className="text-xs">Account</span>
+          </button>
+          <button
+            onClick={() => navigate("/cart")}
+            className="flex flex-col items-center"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            <span className="text-xs">Cart</span>
+          </button>
+        </nav>
+      )}
 
       {/* Footer */}
       <footer className="px-6 py-4 border-t">

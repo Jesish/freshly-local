@@ -29,7 +29,7 @@ const LoginForm = () => {
         if (response.data.userType === "farmer") {
           navigate("/Dashboard"); // Redirect to farmer page
         } else {
-          navigate("/consumer-dashboard"); // Redirect to consumer page
+          navigate("/"); // Redirect to consumer page
         }
       }
       // Save token & redirect
@@ -88,7 +88,7 @@ const LoginForm = () => {
 
           <div className="text-center text-sm text-gray-600 mt-4">
             Don't have an account?{" "}
-            <a href="/register" className="text-green-600 hover:underline">
+            <a href="/signup" className="text-green-600 hover:underline">
               Create an account
             </a>
           </div>

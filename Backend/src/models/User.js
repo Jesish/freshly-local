@@ -27,6 +27,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  farmImage:{
+    type: String,
+    default: '',
+  },
   userType: {
     type: String,
     enum: ['consumer', 'farmer'],

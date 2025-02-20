@@ -11,7 +11,7 @@ import {
   Truck,
   Leaf,
 } from "lucide-react";
-import farmimage from "./assets/Farm.jpg";
+import farmimage from "../assets/Farm.png";
 const FarmProfilePage = () => {
   const [reviewForm, setReviewForm] = useState({
     name: "",

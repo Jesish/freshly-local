@@ -11,8 +11,10 @@ const Signup = () => {
     password: "",
     farmName: "",
     farmLocation: "",
+    userType: userType,
     termsAccepted: false,
   });
+
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,6 +25,16 @@ const Signup = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
+  console.log(userType);
+
+  // Update userType and also update formData
+  const handleUserTypeChange = (type) => {
+    setUserType(type);
+    setFormData((prev) => ({
+      ...prev,
+      userType: type, // Update userType in formData
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,6 +42,7 @@ const Signup = () => {
     setError(null);
 
     try {
+      console.log("Form Data:", formData);
       const response = await API.post("/users/signup", formData);
       // Assuming your backend responds with a success message or token
       if (response.status === 200) {
@@ -56,7 +69,7 @@ const Signup = () => {
                 ? "border-2 border-green-500 bg-white text-green-600"
                 : "border border-gray-200 bg-white text-gray-600"
             }`}
-          onClick={() => setUserType("consumer")}
+          onClick={() => handleUserTypeChange("consumer")} // Call handleUserTypeChange
         >
           <div className="flex items-center justify-center gap-2">
             <svg
@@ -90,7 +103,7 @@ const Signup = () => {
                 ? "border-2 border-green-500 bg-white text-green-600"
                 : "border border-gray-200 bg-white text-gray-600"
             }`}
-          onClick={() => setUserType("farmer")}
+          onClick={() => handleUserTypeChange("farmer")} // Call handleUserTypeChange
         >
           <div className="flex items-center justify-center gap-2">
             <svg
