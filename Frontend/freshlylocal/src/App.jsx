@@ -8,6 +8,7 @@ import ManageProduct from "./Pages/ManageProduct";
 import Order from "./Pages/Order";
 import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/ConsumerLandingaPage";
+import FarmProfilePage from "./Pages/FarmDetails";
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
         <Route path="/order" element={<Order />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<LandingPage />} />
+        <Route path="/farmdescription" element={<FarmProfilePage />} />
       </Routes>
       {/* <Signup />
       <Login /> */}
