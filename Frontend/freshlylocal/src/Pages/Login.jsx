@@ -24,17 +24,18 @@ const LoginForm = () => {
     try {
       const response = await API.post("/users/login", formData);
       console.log("Login successful:", response.data);
-
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        if (response.data.userType === "farmer") {
+          navigate("/Dashboard"); // Redirect to farmer page
+        } else {
+          navigate("/consumer-dashboard"); // Redirect to consumer page
+        }
+      }
       // Save token & redirect
-      localStorage.setItem("token", response.data.token);
-      // if (userType === 'farmer') {
-      //   navigate('/farmer-dashboard'); // Redirect to farmer page
-      // } else {
-      //   navigate('/consumer-dashboard'); // Redirect to consumer page
-      // }
     } catch (error) {
       console.error("Login error:", error?.response?.data || error.message);
-      alert("Login failed. Please try again.");
+      alert("Login failed. Please try again.");
     }
   };
 

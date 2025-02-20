@@ -68,6 +68,7 @@ const login = async (req, res) => {
     res.json({
       msg: "Login successful",
       token,
+      userType: user.userType,
     });
   } catch (error) {
     console.error(error);
@@ -109,8 +110,5 @@ const getAllFarmers = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
-
-
 
 module.exports = { signup, login, getProfile, getAllFarmers };
