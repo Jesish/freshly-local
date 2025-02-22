@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Home,
   Package,
@@ -11,6 +11,8 @@ import {
   Upload,
 } from "lucide-react";
 import { Box, ClipboardList, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 const ManageProducts = () => {
   const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
@@ -23,10 +25,26 @@ const ManageProducts = () => {
     status: "In stock",
     image: null,
   });
-
+  const [products, setProducts] = useState([]);
   const toggleAddProductModal = () => {
     setIsAddProductModalOpen(!isAddProductModalOpen);
   };
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/api/products/my-products", {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        }, // Pass token if needed
+      })
+      .then((res) => {
+        console.log(res.data);
+        setProducts(res.data);
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -100,27 +118,6 @@ const ManageProducts = () => {
     "Other",
   ];
 
-  const products = [
-    {
-      id: 1,
-      name: "Fresh Tomatoes",
-      category: "Vegetables",
-      price: "$4.99/kg",
-      stock: "150 kg",
-      status: "Pending",
-      image: "🍅",
-    },
-    {
-      id: 2,
-      name: "Red Apples",
-      category: "Fruits",
-      price: "$3.99/kg",
-      stock: "0 kg",
-      status: "Out of stock",
-      image: "🍎",
-    },
-  ];
-
   return (
     <div className="flex h-screen bg-white">
       {/* Sidebar */}
@@ -192,7 +189,7 @@ const ManageProducts = () => {
                 className="grid grid-cols-6 gap-4 p-4 items-center"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{product.image}</span>
+                  {/* <span className="text-xl">{product.image}</span> */}
                   <span>{product.name}</span>
                 </div>
                 <div>{product.category}</div>

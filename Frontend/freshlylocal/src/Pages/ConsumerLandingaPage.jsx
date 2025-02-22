@@ -1,32 +1,34 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Search, ShoppingCart, Home, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
+import farmer from "../assets/farmer.png";
+import axios from "axios";
 const LandingPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token"); // Check if token exists
+  const [farms, setFarms] = useState([]);
 
-  const farms = [
-    {
-      id: 1,
-      name: "Green Valley Farm",
-      description:
-        "Fresh vegetables and herbs grown with sustainable practices",
-      image: "/api/placeholder/400/300",
-    },
-    {
-      id: 2,
-      name: "Sunny Orchards",
-      description: "Fresh seasonal fruits from our family-owned orchard",
-      image: "/api/placeholder/400/300",
-    },
-    {
-      id: 3,
-      name: "Happy Dairy Farm",
-      description: "Fresh dairy products from grass-fed cows",
-      image: "/api/placeholder/400/300",
-    },
-  ];
+  useEffect(() => {
+    const fetchFarms = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/users/farms",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`, // Pass token if needed
+            },
+          }
+        );
+
+        setFarms(response.data);
+        console.log(response.data);
+      } catch (error) {
+        console.error("Error fetching farms:", error);
+      }
+    };
+
+    fetchFarms();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -59,7 +61,31 @@ const LandingPage = () => {
               <ShoppingCart className="w-6 h-6" />
             </button>
           </div>
-        ) : null}
+        ) : (
+          <div className="flex items-center gap-6 text-gray-600">
+            <button
+              onClick={() => navigate("/home")}
+              className="flex flex-col items-center hover:text-gray-800"
+            >
+              <Home className="w-6 h-6" />
+              <span className="text-xs">Home</span>
+            </button>
+            <button
+              onClick={() => navigate("/consumerprofile")}
+              className="flex flex-col items-center hover:text-gray-800"
+            >
+              <User className="w-6 h-6" />
+              <span className="text-xs">Account</span>
+            </button>
+            <button
+              onClick={() => navigate("/cart")}
+              className="flex flex-col items-center hover:text-gray-800"
+            >
+              <ShoppingCart className="w-6 h-6" />
+              <span className="text-xs">Cart</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -84,7 +110,7 @@ const LandingPage = () => {
         </div>
         <div>
           <img
-            src="/api/placeholder/600/400"
+            src={farmer}
             alt="Happy Farmer"
             className="w-full h-full object-cover rounded-lg"
           />
@@ -100,20 +126,28 @@ const LandingPage = () => {
           <div className="grid grid-cols-3 gap-6">
             {farms.map((farm) => (
               <div
-                key={farm.id}
+                key={farm._id} // Use _id instead of id (it's more consistent with MongoDB)
                 className="bg-white rounded-lg overflow-hidden shadow-sm"
               >
                 <img
-                  src={farm.image}
-                  alt={farm.name}
+                  // Ensure farmImage is used for the farm image (if the field is empty, use a placeholder)
+                  src={farm.farmImage || farmer}
+                  alt={farm.farmName}
                   className="w-full h-48 object-cover"
                 />
                 <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{farm.name}</h3>
+                  <h3 className="font-semibold text-lg mb-2">
+                    {farm.farmName}
+                  </h3>{" "}
+                  {/* Use farmName */}
                   <p className="text-gray-600 text-sm mb-4">
-                    {farm.description}
-                  </p>
-                  <button className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                    {farm.farmLocation}
+                  </p>{" "}
+                  {/* Display farm location or description */}
+                  <button
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    onClick={() => navigate(`/farmdescription/${farm._id}`)}
+                  >
                     Shop Now
                   </button>
                 </div>
@@ -122,33 +156,6 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Bottom Navigation (Only if Token Exists) */}
-      {token && (
-        <nav className="fixed bottom-0 left-0 w-full bg-white border-t flex justify-around py-3 text-gray-600">
-          <button
-            onClick={() => navigate("/home")}
-            className="flex flex-col items-center"
-          >
-            <Home className="w-5 h-5" />
-            <span className="text-xs">Home</span>
-          </button>
-          <button
-            onClick={() => navigate("/account")}
-            className="flex flex-col items-center"
-          >
-            <User className="w-5 h-5" />
-            <span className="text-xs">Account</span>
-          </button>
-          <button
-            onClick={() => navigate("/cart")}
-            className="flex flex-col items-center"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            <span className="text-xs">Cart</span>
-          </button>
-        </nav>
-      )}
 
       {/* Footer */}
       <footer className="px-6 py-4 border-t">

@@ -9,6 +9,7 @@ import Order from "./Pages/Order";
 import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/ConsumerLandingaPage";
 import FarmProfilePage from "./Pages/FarmDetails";
+import ConsumerProfile from "./Pages/ConsumerProfile";
 
 function App() {
   return (
@@ -24,7 +25,8 @@ function App() {
         <Route path="/order" element={<Order />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<LandingPage />} />
-        <Route path="/farmdescription" element={<FarmProfilePage />} />
+        <Route path="/farmdescription/:id" element={<FarmProfilePage />} />
+        <Route path="/consumerprofile" element={<ConsumerProfile />} />
       </Routes>
       {/* <Signup />
       <Login /> */}

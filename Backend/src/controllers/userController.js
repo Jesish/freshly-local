@@ -111,4 +111,18 @@ const getAllFarmers = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getProfile, getAllFarmers };
+const getAllFarms = async (req, res) => {
+  try {
+    // Fetch all users who are farmers and have farm details
+    const farms = await User.find({ userType: "farmer" })
+    res.json(farms);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+module.exports = { signup, login, getProfile, getAllFarmers, getAllFarms };
+
+
+//farmer id each ..params totake form url 

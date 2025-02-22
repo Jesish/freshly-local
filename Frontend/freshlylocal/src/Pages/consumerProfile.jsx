@@ -1,8 +1,29 @@
 import React from "react";
+import { useState, useEffect } from "react";
 import { MapPin, Mail, Edit, Tractor } from "lucide-react";
+import axios from "axios";
 
 const Profile = () => {
-  
+  const [profileData, setProfileData] = useState({});
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const response = await axios.get(
+          "http://localhost:5000/api/users/profile",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        console.log("Profile Data:", response.data);
+        setProfileData(response.data);
+      } catch (error) {
+        console.error("Error fetching profile data:", error);
+      }
+    };
+    fetchProfileData();
+  }, []);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -12,7 +33,7 @@ const Profile = () => {
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 bg-gray-200 rounded-full" />
             <div>
-              <h1 className="text-xl font-semibold">{profileData.name}</h1>
+              <h1 className="text-xl font-semibold">{profileData.fullName}</h1>
               <p className="text-gray-600">
                 Growing fresh produce since {profileData.since}
               </p>
@@ -47,16 +68,18 @@ const Profile = () => {
             <label className="block text-sm text-gray-600 mb-2">
               Full Name
             </label>
-            <div className="p-3 bg-gray-50 rounded-md">{profileData.name}</div>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">
-              Farm Name
-            </label>
             <div className="p-3 bg-gray-50 rounded-md">
-              {profileData.farmName}
+              {profileData.fullName}
             </div>
           </div>
+          {/* <div> */}
+          {/* <label className="block text-sm text-gray-600 mb-2">
+              Farm Name
+            </label> */}
+          {/* <div className="p-3 bg-gray-50 rounded-md">
+              {profileData.farmName}
+            </div> */}
+          {/* </div> */}
           <div>
             <label className="block text-sm text-gray-600 mb-2">
               Email Address
@@ -67,38 +90,9 @@ const Profile = () => {
             <label className="block text-sm text-gray-600 mb-2">
               Contact Number
             </label>
-            <div className="p-3 bg-gray-50 rounded-md">{profileData.phone}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Farm Details */}
-      <div className="bg-white rounded-lg p-6 shadow-sm">
-        <h2 className="text-lg font-semibold mb-4">
-          <span className="flex items-center gap-2">
-            <Tractor className="w-5 h-5 text-gray-700" />
-            <span className="text-gray-700">Farm Details</span>
-          </span>
-        </h2>
-        <div className="mb-6">
-          <label className="block text-sm text-gray-600 mb-2">
-            Farm Description
-          </label>
-          <div className="p-3 bg-gray-50 rounded-md">
-            {profileData.description}
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-600 mb-2">Farm Type</label>
-          <div className="flex gap-2">
-            {profileData.farmTypes.map((type, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
-              >
-                {type}
-              </span>
-            ))}
+            <div className="p-3 bg-gray-50 rounded-md">
+              {profileData.phoneNumber}
+            </div>
           </div>
         </div>
       </div>
