@@ -3,6 +3,7 @@ import { Search, ShoppingCart, Home, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import farmer from "../assets/farmer.png";
 import axios from "axios";
+import { Link } from "react-router-dom";
 const LandingPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token"); // Check if token exists
@@ -144,12 +145,14 @@ const LandingPage = () => {
                     {farm.farmLocation}
                   </p>{" "}
                   {/* Display farm location or description */}
-                  <button
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    onClick={() => navigate(`/farmdescription/${farm._id}`)}
-                  >
-                    Shop Now
-                  </button>
+                  <Link to={`/farmdescription/${farm._id}`}>
+                    <button
+                      className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                      onClick={() => navigate(`/farmdescription/${farm._id}`)}
+                    >
+                      Shop Now
+                    </button>
+                  </Link>
                 </div>
               </div>
             ))}

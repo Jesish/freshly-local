@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import {
   MapPin,
   Home,
@@ -12,6 +11,9 @@ import {
   Leaf,
 } from "lucide-react";
 import farmimage from "../assets/Farm.png";
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import axios from "axios";
 const FarmProfilePage = () => {
   const [reviewForm, setReviewForm] = useState({
     name: "",
@@ -45,6 +47,39 @@ const FarmProfilePage = () => {
     });
   };
 
+  //from farm geeting by id
+  const { id } = useParams(); // Get the farm ID from URL
+  const [farm, setFarm] = useState(null);
+
+  useEffect(() => {
+    const fetchFarmDetails = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          `http://localhost:5000/api/users/farm/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        console.log("API Response:", response.data); // Log response data
+
+        setFarm(response.data); // Store farm data in state
+      } catch (error) {
+        console.error("Error fetching farm details:", error);
+      }
+    };
+
+    fetchFarmDetails();
+  }, [id]); // Runs when ID changes
+
+  if (!farm) {
+    return <p>Loading...</p>;
+  }
+
+  console.log(farm);
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
@@ -71,22 +106,23 @@ const FarmProfilePage = () => {
 
       {/* Main Content */}
       <main className="flex-1">
-        {/* Farm Hero Section */}
+        {/* Farm desciproiotn Section */}
+
         <section className="px-6 py-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="rounded-lg overflow-hidden shadow-md">
             <img
-              src={farmimage}
-              alt="Green Valley Farm"
+              src={farm.farmImage}
+              alt="image"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="flex flex-col justify-center">
             <h1 className="text-3xl font-bold text-green-800 mb-2">
-              Green Valley Farm
+              {farm.FarmName}
             </h1>
             <div className="flex items-center gap-1 text-gray-600 mb-6">
               <MapPin size={18} className="text-gray-500" />
-              <span>123 Farmland Road, Green Valley, CA 94123</span>
+              <span>{farm.FarmLocation}</span>
             </div>
             <button className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors">
               <ShoppingCart size={18} />
@@ -102,10 +138,7 @@ const FarmProfilePage = () => {
               About the Farm
             </h2>
             <p className="text-gray-700 max-w-3xl mx-auto mb-10 text-center">
-              Green Valley Farm is a family-owned organic farm that has been
-              serving our community for over 30 years. We take pride in our
-              sustainable farming practices and commitment to producing the
-              highest quality organic produce.
+              {farm.farmdescription}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
@@ -135,13 +168,11 @@ const FarmProfilePage = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Phone className="text-green-700" />
-                  <span className="text-gray-700">(555) 123-4567</span>
+                  <span className="text-gray-700">{farm.phoneNumber}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Mail className="text-green-700" />
-                  <span className="text-gray-700">
-                    contact@freshlylocal.com
-                  </span>
+                  <span className="text-gray-700">{farm.email}</span>
                 </div>
               </div>
               <div className="bg-gray-200 rounded-lg overflow-hidden h-48 md:h-auto">

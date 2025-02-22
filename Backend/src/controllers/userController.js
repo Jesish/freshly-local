@@ -114,7 +114,7 @@ const getAllFarmers = async (req, res) => {
 const getAllFarms = async (req, res) => {
   try {
     // Fetch all users who are farmers and have farm details
-    const farms = await User.find({ userType: "farmer" })
+    const farms = await User.find({ userType: "farmer" });
     res.json(farms);
   } catch (error) {
     console.error(error);
@@ -122,7 +122,36 @@ const getAllFarms = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, getProfile, getAllFarmers, getAllFarms };
+// Fetch farm details by ID
+const getFarmById = async (req, res) => {
+  try {
+    const farm = await User.findById(req.params.id);
+    if (!farm) {
+      return res.status(404).json({ message: "Farm not found" });
+    }
 
+    res.json({
+      farmName: farm.farmName,
+      farmLocation: farm.farmLocation,
+      farmImage: farm.farmImage,
+      farmdescription: farm.farmdescription,
+      farmerName: farm.fullName,
+      farmerEmail: farm.email,
+      farmerPhone: farm.phoneNumber,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
-//farmer id each ..params totake form url 
+module.exports = {
+  signup,
+  login,
+  getProfile,
+  getAllFarmers,
+  getAllFarms,
+  getFarmById,
+};
+
+//farmer id each ..params totake form url

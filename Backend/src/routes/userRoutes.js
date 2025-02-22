@@ -5,6 +5,7 @@ const {
   getProfile,
   getAllFarmers,
   getAllFarms,
+  getFarmById,
 } = require("../controllers/userController");
 // const { signup, login, getProfile,} = require("../controllers/userController");
 
@@ -20,5 +21,6 @@ router.post("/login", login);
 router.get("/profile", protect, getProfile); // Protect this route
 router.get("/farmers", protect, getAllFarmers); //get allfarmers
 router.get("/farms", protect, getAllFarms);
+router.get("/farm/:id", protect, getFarmById);
 
 module.exports = router;
