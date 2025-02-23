@@ -14,7 +14,11 @@ import farmimage from "../assets/Farm.png";
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import farmer from "../assets/farm.png";
+
 const FarmProfilePage = () => {
+  const navigate = useNavigate();
   const [reviewForm, setReviewForm] = useState({
     name: "",
     rating: 0,
@@ -89,15 +93,18 @@ const FarmProfilePage = () => {
           <span className="text-green-700 font-semibold">Freshly Local</span>
         </div>
         <div className="flex items-center gap-6">
-          <a href="#" className="flex items-center gap-1 text-gray-700">
+          <a href="/" className="flex items-center gap-1 text-gray-700">
             <Home size={18} />
             <span>Home</span>
           </a>
-          <a href="#" className="flex items-center gap-1 text-gray-700">
+          <a
+            href="/consumerprofile"
+            className="flex items-center gap-1 text-gray-700"
+          >
             <User size={18} />
             <span>Account</span>
           </a>
-          <a href="#" className="flex items-center gap-1 text-gray-700">
+          <a href="/cart" className="flex items-center gap-1 text-gray-700">
             <ShoppingCart size={18} />
             <span>Cart</span>
           </a>
@@ -111,20 +118,23 @@ const FarmProfilePage = () => {
         <section className="px-6 py-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="rounded-lg overflow-hidden shadow-md">
             <img
-              src={farm.farmImage}
+              src={farm.farmImage || farmer}
               alt="image"
               className="w-full h-full object-cover"
             />
           </div>
           <div className="flex flex-col justify-center">
             <h1 className="text-3xl font-bold text-green-800 mb-2">
-              {farm.FarmName}
+              {farm.farmName}
             </h1>
             <div className="flex items-center gap-1 text-gray-600 mb-6">
               <MapPin size={18} className="text-gray-500" />
-              <span>{farm.FarmLocation}</span>
+              <span>{farm.farmLocation}</span>
             </div>
-            <button className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors">
+            <button
+              className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors"
+              onClick={() => navigate(`/ProductPage`)}
+            >
               <ShoppingCart size={18} />
               <span>Shop Now</span>
             </button>
@@ -168,11 +178,11 @@ const FarmProfilePage = () => {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Phone className="text-green-700" />
-                  <span className="text-gray-700">{farm.phoneNumber}</span>
+                  <span className="text-gray-700">{farm.farmerPhone}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Mail className="text-green-700" />
-                  <span className="text-gray-700">{farm.email}</span>
+                  <span className="text-gray-700">{farm.farmerEmail}</span>
                 </div>
               </div>
               <div className="bg-gray-200 rounded-lg overflow-hidden h-48 md:h-auto">

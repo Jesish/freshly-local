@@ -10,6 +10,8 @@ import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/ConsumerLandingaPage";
 import FarmProfilePage from "./Pages/FarmDetails";
 import ConsumerProfile from "./Pages/ConsumerProfile";
+import Product from "./Pages/ProductPage";  
+
 
 function App() {
   return (
@@ -27,6 +29,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/farmdescription/:id" element={<FarmProfilePage />} />
         <Route path="/consumerprofile" element={<ConsumerProfile />} />
+        <Route path="/ProductPage" element={<Product/>} />
       </Routes>
       {/* <Signup />
       <Login /> */}
