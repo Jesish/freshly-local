@@ -26,6 +26,8 @@ const ManageProducts = () => {
     image: null,
   });
   const [products, setProducts] = useState([]);
+  const [error, setError] = useState(null);
+
   const toggleAddProductModal = () => {
     setIsAddProductModalOpen(!isAddProductModalOpen);
   };
@@ -63,22 +65,69 @@ const ManageProducts = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would normally send the data to your backend
-    console.log("Product to add:", newProduct);
+    setError(null);
 
-    // Close modal and reset form
-    setNewProduct({
-      name: "",
-      category: "",
-      price: "",
-      stock: "",
-      description: "",
-      status: "In stock",
-      image: null,
-    });
-    toggleAddProductModal();
+    try {
+      let payload;
+      // If an image file is selected, use FormData for file upload
+      if (newProduct.image) {
+        payload = new FormData();
+        payload.append("name", newProduct.name);
+        payload.append("category", newProduct.category);
+        payload.append("price", newProduct.price);
+        payload.append("stock", newProduct.stock);
+        payload.append("description", newProduct.description);
+        payload.append("status", newProduct.status);
+        payload.append("image", newProduct.image);
+      } else {
+        // If no image is selected, send JSON
+        payload = {
+          name: newProduct.name,
+          category: newProduct.category,
+          price: newProduct.price,
+          stock: newProduct.stock,
+          description: newProduct.description,
+          status: newProduct.status,
+        };
+      }
+
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/api/products/",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // If using FormData, let Axios set the content-type automatically
+            "Content-Type": newProduct.image
+              ? "multipart/form-data"
+              : "application/json",
+          },
+        }
+      );
+      console.log("Product added:", response.data);
+
+      setProducts((prev) => [...prev, response.data.product]);
+
+      // Reset form data and close modal
+      setNewProduct({
+        name: "",
+        category: "",
+        price: "",
+        stock: "",
+        description: "",
+        status: "In stock",
+        image: null,
+      });
+      toggleAddProductModal();
+    } catch (error) {
+      console.error("Error adding product:", error);
+      setError(error.response ? error.response.data.msg : "Server error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sidebarItems = [
@@ -229,7 +278,7 @@ const ManageProducts = () => {
         </div>
       </div>
 
-      {/* Add Product Modal */}
+      {/*to  add product modal */}
       {isAddProductModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">

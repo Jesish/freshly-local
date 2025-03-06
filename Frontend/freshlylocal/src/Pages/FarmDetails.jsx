@@ -133,7 +133,7 @@ const FarmProfilePage = () => {
             </div>
             <button
               className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors"
-              onClick={() => navigate(`/ProductPage`)}
+              onClick={() => navigate(`/ProductPage/${id}`)}
             >
               <ShoppingCart size={18} />
               <span>Shop Now</span>

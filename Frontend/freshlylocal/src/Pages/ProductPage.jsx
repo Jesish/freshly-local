@@ -1,50 +1,7 @@
-import React, { useState } from "react";
-
-// Dummy data for demonstration
-const dummyProducts = [
-  {
-    id: 1,
-    name: "Organic Carrots",
-    price: 2.99,
-    category: "Vegetables",
-    image: "/api/placeholder/200/200",
-  },
-  {
-    id: 2,
-    name: "Fresh Tomatoes",
-    price: 3.45,
-    category: "Vegetables",
-    image: "/api/placeholder/200/200",
-  },
-  {
-    id: 3,
-    name: "Red Apples",
-    price: 1.99,
-    category: "Fruits",
-    image: "/api/placeholder/200/200",
-  },
-  {
-    id: 4,
-    name: "Organic Milk",
-    price: 4.99,
-    category: "Dairy & Eggs",
-    image: "/api/placeholder/200/200",
-  },
-  {
-    id: 5,
-    name: "Fresh Basil",
-    price: 2.49,
-    category: "Fresh Herbs",
-    image: "/api/placeholder/200/200",
-  },
-  {
-    id: 6,
-    name: "Brown Rice",
-    price: 3.99,
-    category: "Grains",
-    image: "/api/placeholder/200/200",
-  },
-];
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { useParams } from "react-router-dom";
+// import Cartmodal from './Cartmodel';
 
 const categories = [
   "All",
@@ -60,15 +17,45 @@ const categories = [
 ];
 
 const ProductPage = () => {
+  // Get the farmer's ID from the URL parameter
+  const { id } = useParams();
+
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState({});
+  const [products, setProducts] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredProducts =
-    selectedCategory === "All"
-      ? dummyProducts
-      : dummyProducts.filter(
-          (product) => product.category === selectedCategory
+  useEffect(() => {
+    if (!id) return; // Ensure we have a farmerId
+
+    const fetchProducts = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(
+          `http://localhost:5000/api/products/farmer/${id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
+        setProducts(response.data);
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      }
+    };
+
+    fetchProducts();
+  }, [id]);
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      selectedCategory === "All" || product.category === selectedCategory;
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   const handleAddToCart = (productId) => {
     setCart((prev) => ({
@@ -110,48 +97,54 @@ const ProductPage = () => {
           <input
             type="text"
             placeholder="Search for products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full p-2 border rounded"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden"
-            >
-              <img
-                src={product.image}
-                alt={product.name}
-                className="w-full h-44 object-cover"
-              />
-              <div className="p-4">
-                <h3 className="text-lg font-semibold">{product.name}</h3>
-                <p className="text-gray-600">${product.price.toFixed(2)}/lb</p>
-                <div className="flex items-center mt-4 space-x-2">
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map((product) => (
+              <div
+                key={product._id}
+                className="bg-white rounded-lg shadow-md overflow-hidden"
+              >
+                <img
+                  src={product.image || "/api/placeholder/200/200"}
+                  alt={product.name}
+                  className="w-full h-44 object-cover"
+                />
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold">{product.name}</h3>
+                  <p className="text-gray-600">${product.price.toFixed(2)}</p>
+                  <div className="flex items-center mt-4 space-x-2">
+                    <button
+                      onClick={() => handleRemoveFromCart(product._id)}
+                      className="px-3 py-1 bg-gray-200 rounded"
+                    >
+                      -
+                    </button>
+                    <span>{cart[product._id] || 0}</span>
+                    <button
+                      onClick={() => handleAddToCart(product._id)}
+                      className="px-3 py-1 bg-green-600 text-white rounded"
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
-                    onClick={() => handleRemoveFromCart(product.id)}
-                    className="px-3 py-1 bg-gray-200 rounded"
+                    onClick={() => handleAddToCart(product._id)}
+                    className="w-full mt-2 p-2 bg-green-600 text-white rounded hover:bg-green-700"
                   >
-                    -
-                  </button>
-                  <span>{cart[product.id] || 0}</span>
-                  <button
-                    onClick={() => handleAddToCart(product.id)}
-                    className="px-3 py-1 bg-green-600 text-white rounded"
-                  >
-                    +
+                    Add to Cart
                   </button>
                 </div>
-                <button
-                  onClick={() => handleAddToCart(product.id)}
-                  className="w-full mt-2 p-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Add to Cart
-                </button>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <p>No products available in this category.</p>
+          )}
         </div>
       </div>
     </div>
