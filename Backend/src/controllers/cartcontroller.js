@@ -1,5 +1,6 @@
 const Cart = require("../models/cart");
 const Product = require("../models/Product");
+const mongoose = require("mongoose");
 
 const addToCart = async (req, res) => {
   try {
@@ -9,39 +10,51 @@ const addToCart = async (req, res) => {
     }
 
     const { productId, quantity } = req.body;
+    console.log("Received Data:", req.body);
+    console.log("Product ID:", productId);
+    console.log(
+      "Is Valid ObjectId?",
+      mongoose.Types.ObjectId.isValid(productId)
+    );
 
-    // Check if the product exists
+    // Validate productId
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ msg: "Invalid product ID" });
+    }
+
+    // Find the product in the database
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ msg: "Product not found" });
     }
 
-    // Check if the consumer already has a cart
+    // Find the consumer's cart
     let cart = await Cart.findOne({ consumer: req.user._id });
+
     if (!cart) {
-      // If no cart exists, create a new one
+      // Create a new cart if it doesn't exist
       cart = new Cart({ consumer: req.user._id, items: [] });
     }
 
     // Check if the product already exists in the cart
-    const existingItem = cart.items.find(
-      (item) => item.product.toString() === productId
+    const existingItem = cart.items.find((item) =>
+      item.product.equals(productId)
     );
+
     if (existingItem) {
-      // If the product already exists, just update the quantity
+      // If the product exists, update the quantity
       existingItem.quantity += quantity;
     } else {
       // Otherwise, add a new item to the cart
-      cart.items.push({ product: productId, quantity, price: product.price });
+      cart.items.push({ product: product._id, quantity, price: product.price });
     }
 
     // Save the cart to the database
     await cart.save();
 
-    // Send response with the updated cart
     res.json({ msg: "Product added to cart", cart });
   } catch (error) {
-    console.error(error);
+    console.error("Error adding to cart:", error);
     res.status(500).json({ msg: "Server error" });
   }
 };
@@ -140,18 +153,24 @@ const removeCartItem = async (req, res) => {
 };
 
 const clearCart = async (req, res) => {
-    try {
-      if (!req.user || req.user.userType !== "consumer") {
-        return res.status(403).json({ msg: "Only consumers can clear the cart" });
-      }
-  
-      await Cart.findOneAndDelete({ consumer: req.user._id });
-  
-      res.json({ msg: "Cart cleared successfully" });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ msg: "Server error" });
+  try {
+    if (!req.user || req.user.userType !== "consumer") {
+      return res.status(403).json({ msg: "Only consumers can clear the cart" });
     }
-  };
-  
-module.exports = { addToCart, getCart, updateCartItem, removeCartItem, clearCart };
+
+    await Cart.findOneAndDelete({ consumer: req.user._id });
+
+    res.json({ msg: "Cart cleared successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+module.exports = {
+  addToCart,
+  getCart,
+  updateCartItem,
+  removeCartItem,
+  clearCart,
+};

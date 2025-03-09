@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
-// import Cartmodal from './Cartmodel';
+import { ShoppingCart, Home, User } from "lucide-react";
+import { Leaf } from "lucide-react";
+import CartModal from "./Cartmodel"; // Ensure correct import path
 
 const categories = [
   "All",
@@ -17,16 +19,14 @@ const categories = [
 ];
 
 const ProductPage = () => {
-  // Get the farmer's ID from the URL parameter
   const { id } = useParams();
-
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [cart, setCart] = useState({});
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false); // Add state for cart modal
 
   useEffect(() => {
-    if (!id) return; // Ensure we have a farmerId
+    if (!id) return;
 
     const fetchProducts = async () => {
       try {
@@ -35,7 +35,7 @@ const ProductPage = () => {
           `http://localhost:5000/api/products/farmer/${id}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
@@ -57,18 +57,27 @@ const ProductPage = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleAddToCart = (productId) => {
-    setCart((prev) => ({
-      ...prev,
-      [productId]: (prev[productId] || 0) + 1,
-    }));
-  };
-
-  const handleRemoveFromCart = (productId) => {
-    setCart((prev) => ({
-      ...prev,
-      [productId]: Math.max((prev[productId] || 0) - 1, 0),
-    }));
+  const handleAddToCart = async (productId) => {
+    try {
+      await axios.post(
+        "http://localhost:5000/api/cart",
+        {
+          productId,
+          quantity: 1,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            // If using FormData, let Axios set the content-type automatically
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      // Optionally open cart modal after adding
+      setIsCartOpen(true);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    }
   };
 
   return (
@@ -93,60 +102,77 @@ const ProductPage = () => {
 
       {/* Main Content */}
       <div className="flex-1 p-6">
-        <div className="mb-6">
-          <input
-            type="text"
-            placeholder="Search for products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full p-2 border rounded"
-          />
-        </div>
+        {/* Navbar */}
+        <header className="fixed top-0 left-0 right-0 bg-white py-4 px-6 flex justify-between items-center border-b z-10">
+          <div className="flex items-center gap-2">
+            <Leaf className="text-green-700" />
+            <span className="text-green-700 font-semibold">Freshly Local</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <a href="/" className="flex items-center gap-1 text-gray-700">
+              <Home size={18} />
+              <span>Home</span>
+            </a>
+            <a
+              href="/consumerprofile"
+              className="flex items-center gap-1 text-gray-700"
+            >
+              <User size={18} />
+              <span>Account</span>
+            </a>
+            <button
+              onClick={() => setIsCartOpen(true)} // Changed from <a> to <button>
+              className="flex items-center gap-1 text-gray-700 hover:text-green-700"
+            >
+              <ShoppingCart size={18} />
+              <span>Cart</span>
+            </button>
+          </div>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
-              <div
-                key={product._id}
-                className="bg-white rounded-lg shadow-md overflow-hidden"
-              >
-                <img
-                  src={product.image || "/api/placeholder/200/200"}
-                  alt={product.name}
-                  className="w-full h-44 object-cover"
-                />
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold">{product.name}</h3>
-                  <p className="text-gray-600">${product.price.toFixed(2)}</p>
-                  <div className="flex items-center mt-4 space-x-2">
-                    <button
-                      onClick={() => handleRemoveFromCart(product._id)}
-                      className="px-3 py-1 bg-gray-200 rounded"
-                    >
-                      -
-                    </button>
-                    <span>{cart[product._id] || 0}</span>
+        <div className="mt-16">
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Search for products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
+                <div
+                  key={product._id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden"
+                >
+                  <img
+                    src={product.image || "/api/placeholder/200/200"}
+                    alt={product.name}
+                    className="w-full h-44 object-cover"
+                  />
+                  <div className="p-4">
+                    <h3 className="text-lg font-semibold">{product.name}</h3>
+                    <p className="text-gray-600">${product.price.toFixed(2)}</p>
                     <button
                       onClick={() => handleAddToCart(product._id)}
-                      className="px-3 py-1 bg-green-600 text-white rounded"
+                      className="w-full mt-2 p-2 bg-green-600 text-white rounded hover:bg-green-700"
                     >
-                      +
+                      Add to Cart
                     </button>
                   </div>
-                  <button
-                    onClick={() => handleAddToCart(product._id)}
-                    className="w-full mt-2 p-2 bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    Add to Cart
-                  </button>
                 </div>
-              </div>
-            ))
-          ) : (
-            <p>No products available in this category.</p>
-          )}
+              ))
+            ) : (
+              <p>No products available in this category.</p>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Cart Modal */}
+      <CartModal isOpen={isCartOpen} setIsOpen={setIsCartOpen} />
     </div>
   );
 };

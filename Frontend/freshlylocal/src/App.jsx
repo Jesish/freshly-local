@@ -11,6 +11,9 @@ import LandingPage from "./Pages/ConsumerLandingaPage";
 import FarmProfilePage from "./Pages/FarmDetails";
 import ConsumerProfile from "./Pages/ConsumerProfile";
 import Product from "./Pages/ProductPage";
+import PaymentPage from "./Pages/PaymentPage";
+import SuccessPage from "./Pages/SuccessPage";
+import FailurePage from "./Pages/FailurePage";
 
 function App() {
   return (
@@ -29,6 +32,9 @@ function App() {
         <Route path="/farmdescription/:id" element={<FarmProfilePage />} />
         <Route path="/consumerprofile" element={<ConsumerProfile />} />
         <Route path="/ProductPage/:id" element={<Product />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/success" element={<SuccessPage />} />
+        <Route path="/failure" element={<FailurePage />} />
       </Routes>
       {/* <Signup />
       <Login /> */}

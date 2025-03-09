@@ -99,7 +99,8 @@ const ManageProducts = () => {
         payload,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+
             // If using FormData, let Axios set the content-type automatically
             "Content-Type": newProduct.image
               ? "multipart/form-data"

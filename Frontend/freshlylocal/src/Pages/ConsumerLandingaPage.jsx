@@ -65,7 +65,7 @@ const LandingPage = () => {
         ) : (
           <div className="flex items-center gap-6 text-gray-600">
             <button
-              onClick={() => navigate("/home")}
+              onClick={() => navigate("/")}
               className="flex flex-col items-center hover:text-gray-800"
             >
               <Home className="w-6 h-6" />

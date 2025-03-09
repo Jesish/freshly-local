@@ -9,80 +9,166 @@ import {
   Home as HomeIcon,
   Truck,
   Leaf,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import farmimage from "../assets/Farm.png";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
 import farmer from "../assets/farm.png";
 
 const FarmProfilePage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [farm, setFarm] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({
-    name: "",
     rating: 0,
     review: "",
   });
+  const [editReviewId, setEditReviewId] = useState(null); // Track review being edited
+  const [editForm, setEditForm] = useState({ rating: 0, review: "" }); // Edit form state
+  const [consumerName, setConsumerName] = useState("");
+  const [consumerId, setConsumerId] = useState(""); // Store logged-in user's ID
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setReviewForm({
-      ...reviewForm,
-      [name]: value,
-    });
-  };
-
-  const handleRatingChange = (rating) => {
-    setReviewForm({
-      ...reviewForm,
-      rating: rating,
-    });
-  };
-
-  const handleSubmitReview = (e) => {
-    e.preventDefault();
-    console.log("Review submitted:", reviewForm);
-    // Reset form after submission
-    setReviewForm({
-      name: "",
-      rating: 0,
-      review: "",
-    });
-  };
-
-  //from farm geeting by id
-  const { id } = useParams(); // Get the farm ID from URL
-  const [farm, setFarm] = useState(null);
-
+  // Fetch farm details
   useEffect(() => {
     const fetchFarmDetails = async () => {
       try {
-        const token = localStorage.getItem("token");
         const response = await axios.get(
           `http://localhost:5000/api/users/farm/${id}`,
           {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
             },
           }
         );
-        console.log("API Response:", response.data); // Log response data
-
-        setFarm(response.data); // Store farm data in state
+        setFarm(response.data);
       } catch (error) {
         console.error("Error fetching farm details:", error);
       }
     };
-
     fetchFarmDetails();
-  }, [id]); // Runs when ID changes
+  }, [id]);
+
+  // Fetch reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:5000/api/reviews/farm/${id}`
+        );
+        setReviews(response.data);
+      } catch (error) {
+        console.error("Error fetching reviews:", error);
+        setReviews([]);
+      }
+    };
+    fetchReviews();
+  }, [id]);
+
+  // Fetch consumer details
+  useEffect(() => {
+    const fetchConsumerDetails = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/users/me", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setConsumerName(response.data.fullName);
+        setConsumerId(response.data._id); // Store consumer ID
+      } catch (error) {
+        console.error("Error fetching consumer details:", error);
+        setConsumerName("Anonymous");
+        setConsumerId("");
+      }
+    };
+    fetchConsumerDetails();
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setReviewForm({ ...reviewForm, [name]: value });
+  };
+
+  const handleRatingChange = (rating) => {
+    setReviewForm({ ...reviewForm, rating });
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm({ ...editForm, [name]: value });
+  };
+
+  const handleEditRatingChange = (rating) => {
+    setEditForm({ ...editForm, rating });
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/reviews",
+        {
+          farmId: id,
+          rating: reviewForm.rating,
+          review: reviewForm.review,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setReviews([...reviews, response.data.review]);
+      setReviewForm({ rating: 0, review: "" });
+    } catch (error) {
+      console.error("Error submitting review:", error);
+    }
+  };
+
+  const handleEditReview = (review) => {
+    setEditReviewId(review._id);
+    setEditForm({ rating: review.rating, review: review.review });
+  };
+
+  const handleUpdateReview = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.put(
+        `http://localhost:5000/api/reviews/${editReviewId}`,
+        {
+          rating: editForm.rating,
+          review: editForm.review,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setReviews(
+        reviews.map((r) => (r._id === editReviewId ? response.data.review : r))
+      );
+      setEditReviewId(null);
+      setEditForm({ rating: 0, review: "" });
+    } catch (error) {
+      console.error("Error updating review:", error);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (window.confirm("Are you sure you want to delete this review?")) {
+      try {
+        await axios.delete(`http://localhost:5000/api/reviews/${reviewId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setReviews(reviews.filter((r) => r._id !== reviewId));
+      } catch (error) {
+        console.error("Error deleting review:", error);
+      }
+    }
+  };
 
   if (!farm) {
     return <p>Loading...</p>;
   }
-
-  console.log(farm);
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -113,8 +199,7 @@ const FarmProfilePage = () => {
 
       {/* Main Content */}
       <main className="flex-1">
-        {/* Farm desciproiotn Section */}
-
+        {/* Farm Description Section */}
         <section className="px-6 py-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="rounded-lg overflow-hidden shadow-md">
             <img
@@ -150,7 +235,6 @@ const FarmProfilePage = () => {
             <p className="text-gray-700 max-w-3xl mx-auto mb-10 text-center">
               {farm.farmdescription}
             </p>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
               <div className="flex items-center gap-3">
                 <Leaf className="text-green-700" />
@@ -186,7 +270,6 @@ const FarmProfilePage = () => {
                 </div>
               </div>
               <div className="bg-gray-200 rounded-lg overflow-hidden h-48 md:h-auto">
-                {/* Map placeholder */}
                 <img
                   src="/api/placeholder/600/300"
                   alt="Farm location map"
@@ -206,62 +289,128 @@ const FarmProfilePage = () => {
 
             {/* Reviews Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                    <img
-                      src="/api/placeholder/40/40"
-                      alt="Sarah Johnson"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Sarah Johnson</h3>
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                          key={star}
-                          size={16}
-                          className="text-yellow-400 fill-yellow-400"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <p className="text-gray-700 text-sm">
-                  "Amazing organic produce! The tomatoes are the best I've ever
-                  tasted. Great customer service too!"
+              {reviews.length === 0 ? (
+                <p className="text-center text-gray-500 col-span-2">
+                  No reviews yet.
                 </p>
-              </div>
-
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center overflow-hidden">
-                    <img
-                      src="/api/placeholder/40/40"
-                      alt="Mike Thompson"
-                      className="w-full h-full object-cover"
-                    />
+              ) : (
+                reviews.map((review) => (
+                  <div
+                    key={review._id}
+                    className="bg-white p-6 rounded-lg shadow-sm"
+                  >
+                    {editReviewId === review._id ? (
+                      // Edit Form
+                      <form onSubmit={handleUpdateReview}>
+                        <div className="mb-4">
+                          <label className="block text-gray-700 mb-2">
+                            Rating
+                          </label>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => handleEditRatingChange(star)}
+                                className="focus:outline-none"
+                              >
+                                <Star
+                                  size={24}
+                                  className={`${
+                                    editForm.rating >= star
+                                      ? "text-yellow-400 fill-yellow-400"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="mb-4">
+                          <label className="block text-gray-700 mb-2">
+                            Your Review
+                          </label>
+                          <textarea
+                            name="review"
+                            value={editForm.review}
+                            onChange={handleEditInputChange}
+                            rows="4"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                            required
+                          ></textarea>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="bg-green-700 hover:bg-green-800 text-white py-2 px-4 rounded-md transition-colors"
+                          >
+                            Update
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditReviewId(null)}
+                            className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      // Display Review
+                      <>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+                            <img
+                              src="/api/placeholder/40/40"
+                              alt={review.name || review.consumerId?.fullName}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div>
+                            <h3 className="font-medium">
+                              {review.name || review.consumerId?.fullName}
+                            </h3>
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  size={16}
+                                  className={`${
+                                    star <= review.rating
+                                      ? "text-yellow-400 fill-yellow-400"
+                                      : "text-gray-300"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 text-sm mb-2">
+                          {review.review}
+                        </p>
+                        {review.consumerId?._id === consumerId && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditReview(review)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            >
+                              <Edit2 size={16} />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteReview(review._id)}
+                              className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                            >
+                              <Trash2 size={16} />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                  <div>
-                    <h3 className="font-medium">Mike Thompson</h3>
-                    <div className="flex">
-                      {[1, 2, 3, 4].map((star) => (
-                        <Star
-                          key={star}
-                          size={16}
-                          className="text-yellow-400 fill-yellow-400"
-                        />
-                      ))}
-                      <Star size={16} className="text-gray-300" />
-                    </div>
-                  </div>
-                </div>
-                <p className="text-gray-700 text-sm">
-                  "Fresh vegetables and friendly staff. Will definitely be
-                  coming back!"
-                </p>
-              </div>
+                ))
+              )}
             </div>
 
             {/* Write a Review Form */}
@@ -274,11 +423,9 @@ const FarmProfilePage = () => {
                   <label className="block text-gray-700 mb-2">Your Name</label>
                   <input
                     type="text"
-                    name="name"
-                    value={reviewForm.name}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    required
+                    value={consumerName}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                   />
                 </div>
 

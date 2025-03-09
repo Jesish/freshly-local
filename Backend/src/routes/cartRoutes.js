@@ -10,7 +10,7 @@ const protect = require("../middleware/authMiddleware");
 
 // Route to add a product to the cart
 router.post("/cart", protect, addToCart);
-router.post("/", protect, getCart);
+router.get("/getcart", protect, getCart);
 router.post("/update", protect, updateCartItem);
 router.delete("/remove/:productId", protect, removeCartItem);
 router.delete("/clear", protect, clearCart);
