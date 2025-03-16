@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { ShoppingCart, X, Plus, Minus } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // Add this import
+import { X, PlusCircle, MinusCircle, ShoppingBag } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const CartModal = ({ isOpen, setIsOpen }) => {
-const [cartItems, setCartItems] = useState([]);
-  const navigate = useNavigate(); // Add this for navigation
+  const [cartItems, setCartItems] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) fetchCart();
@@ -18,7 +18,6 @@ const [cartItems, setCartItems] = useState([]);
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
-      console.log("Cart API Response:", data);
       setCartItems(data.items || []);
     } catch (error) {
       console.error("Error fetching cart:", error);
@@ -31,9 +30,7 @@ const [cartItems, setCartItems] = useState([]);
       const currentItem = cartItems.find(
         (item) => item.product._id === productId
       );
-      if (!currentItem || currentItem.quantity + change < 1) {
-        return;
-      }
+      if (!currentItem || currentItem.quantity + change < 1) return;
       const newQuantity = currentItem.quantity + change;
       await axios.post(
         "http://localhost:5000/api/update",
@@ -83,129 +80,168 @@ const [cartItems, setCartItems] = useState([]);
       .toFixed(2);
   };
 
-  // New function to handle checkout
   const handleCheckout = () => {
     if (cartItems.length === 0) {
       alert("Your cart is empty!");
       return;
     }
     const totalAmount = getCartTotal();
-    // Navigate to payment page with cart data
     navigate("/payment", {
-      state: {
-        cartItems,
-        totalAmount,
-      },
+      state: { cartItems, totalAmount },
     });
-    setIsOpen(false); // Close the modal after navigation
+    setIsOpen(false);
   };
 
   return (
-    <div>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 p-2 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 relative"
-      >
-        <ShoppingCart size={24} />
-        {cartItems.length > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-            {cartItems.length}
-          </span>
-        )}
-      </button>
-
+    <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg w-full max-w-md mx-4 shadow-lg overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-xl font-semibold">Your Cart</h2>
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fadeIn">
+          {/* Full Page Container */}
+          <div className="bg-white w-full max-w-5xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-95 hover:scale-100">
+            {/* Top Bar */}
+            <div className="p-6 bg-gradient-to-r from-green-600 to-green-800 text-white flex items-center justify-between">
+              <h2 className="text-3xl font-bold tracking-tight">
+                Your Fresh Cart
+              </h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded"
+                className="p-2 hover:bg-green-900 rounded-full transition-colors"
               >
-                <X size={20} />
+                <X size={28} />
               </button>
             </div>
 
-            <div className="p-4 max-h-96 overflow-y-auto">
-              {cartItems.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
-                  Your cart is empty
-                </p>
-              ) : (
-                cartItems.map((item) => (
-                  <div
-                    key={item.product._id}
-                    className="flex items-center gap-4 py-4 border-b last:border-0"
-                  >
-                    <img
-                      src={item.product.image}
-                      alt={item.product.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                    <div className="flex-1">
-                      <h3 className="font-medium">{item.product.name}</h3>
-                      <p className="text-gray-600">
-                        ${item.product.price.toFixed(2)} x {item.quantity}
-                      </p>
+            {/* Main Content */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* Left: Items */}
+              <div className="w-2/3 p-8 overflow-y-auto bg-gray-100">
+                {cartItems.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center">
+                    <ShoppingBag size={80} className="text-gray-300 mb-6" />
+                    <h3 className="text-2xl font-semibold text-gray-700">
+                      Nothing Here Yet
+                    </h3>
+                    <p className="text-gray-500 mt-2 max-w-md">
+                      Explore our fresh products and add some to your cart!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.product._id}
+                        className="grid grid-cols-5 gap-4 items-center bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        {/* Image */}
+                        <div className="col-span-1">
+                          <img
+                            src={
+                              item.product.image || "/api/placeholder/100/100"
+                            }
+                            alt={item.product.name}
+                            className="w-20 h-20 object-cover rounded-md"
+                          />
+                        </div>
+                        {/* Name */}
+                        <div className="col-span-2">
+                          <h3 className="text-lg font-semibold text-gray-800">
+                            {item.product.name}
+                          </h3>
+                          <p className="text-gray-600 text-sm">
+                            NPR {item.product.price.toFixed(2)} each
+                          </p>
+                        </div>
+                        {/* Quantity */}
+                        <div className="col-span-1 flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => updateQuantity(item.product._id, -1)}
+                            className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                            disabled={item.quantity <= 1}
+                          >
+                            <MinusCircle size={24} />
+                          </button>
+                          <span className="text-lg font-medium text-gray-800">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(item.product._id, 1)}
+                            className="text-green-600 hover:text-green-800 transition-colors"
+                          >
+                            <PlusCircle size={24} />
+                          </button>
+                        </div>
+                        {/* Total & Remove */}
+                        <div className="col-span-1 flex items-center justify-end gap-4">
+                          <span className="text-lg font-semibold text-gray-800">
+                            NPR {getItemTotal(item)}
+                          </span>
+                          <button
+                            onClick={() => removeItem(item.product._id)}
+                            className="text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Summary */}
+              <div className="w-1/3 p-8 bg-white border-l border-gray-200 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-6">
+                    Order Summary
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex justify-between text-gray-600">
+                      <span>Subtotal</span>
+                      <span>NPR {getCartTotal()}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(item.product._id, -1)}
-                        className="p-1 hover:bg-gray-100 rounded"
-                        disabled={item.quantity <= 1}
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.product._id, 1)}
-                        className="p-1 hover:bg-gray-100 rounded"
-                      >
-                        <Plus size={16} />
-                      </button>
+                    <div className="flex justify-between text-gray-600">
+                      <span>Delivery</span>
+                      <span>Free</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium w-20 text-right">
-                        ${getItemTotal(item)}
-                      </span>
-                      <button
-                        onClick={() => removeItem(item.product._id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X size={16} />
-                      </button>
+                    <div className="border-t border-gray-200 pt-4 flex justify-between text-lg font-semibold text-gray-800">
+                      <span>Total</span>
+                      <span>NPR {getCartTotal()}</span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-
-            {cartItems.length > 0 && (
-              <div className="p-4 border-t">
-                <div className="flex justify-between mb-4">
-                  <span className="font-semibold">Total:</span>
-                  <span className="font-semibold">${getCartTotal()}</span>
                 </div>
-                <button
-                  onClick={handleCheckout} // Replace direct button with onClick handler
-                  className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
-                >
-                  Proceed to Checkout
-                </button>
-                <button
-                  onClick={clearCart}
-                  className="w-full mt-2 bg-red-500 text-white py-2 rounded hover:bg-red-600"
-                >
-                  Clear Cart
-                </button>
+                <div className="mt-8">
+                  <button
+                    onClick={handleCheckout}
+                    className="w-full bg-green-600 text-white py-4 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-lg text-lg font-semibold flex items-center justify-center gap-2"
+                    disabled={cartItems.length === 0}
+                  >
+                    <ShoppingBag size={20} /> Checkout Now
+                  </button>
+                  <button
+                    onClick={clearCart}
+                    className="w-full mt-4 text-red-600 py-2 rounded-lg hover:bg-red-100 transition-all duration-200 text-base font-medium"
+                  >
+                    Empty Cart
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
 export default CartModal;
+
+/* Add this to your global CSS (e.g., index.css) for the animation */
+// const styles = `
+//   @keyframes fadeIn {
+//     from { opacity: 0; }
+//     to { opacity: 1; }
+//   }
+//   .animate-fadeIn {
+//     animation: fadeIn 0.3s ease-in-out;
+//   }
+// `;s

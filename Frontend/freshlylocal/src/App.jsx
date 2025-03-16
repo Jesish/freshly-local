@@ -14,6 +14,7 @@ import Product from "./Pages/ProductPage";
 import PaymentPage from "./Pages/PaymentPage";
 import SuccessPage from "./Pages/SuccessPage";
 import FailurePage from "./Pages/FailurePage";
+import OrderHistory from "./Pages/OrderHistory";
 
 function App() {
   return (
@@ -35,6 +36,7 @@ function App() {
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/failure" element={<FailurePage />} />
+        <Route path="/orders" element={<OrderHistory />} />
       </Routes>
       {/* <Signup />
       <Login /> */}
