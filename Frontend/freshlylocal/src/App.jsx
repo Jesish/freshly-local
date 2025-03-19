@@ -9,7 +9,7 @@ import Order from "./Pages/Order";
 import Profile from "./Pages/Profile";
 import LandingPage from "./Pages/ConsumerLandingaPage";
 import FarmProfilePage from "./Pages/FarmDetails";
-import ConsumerProfile from "./Pages/ConsumerProfile";
+import ConsumerProfile from "./Pages/consumerProfile";
 import Product from "./Pages/ProductPage";
 import PaymentPage from "./Pages/PaymentPage";
 import SuccessPage from "./Pages/SuccessPage";

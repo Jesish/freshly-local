@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const Transaction = require("../models/Transaction");
 const Product = require("../models/Product");
 require("dotenv").config();
+const mongoose = require("mongoose");
 
 // Generate HMAC SHA256 Signature
 const generateSignature = (data, secret) => {
@@ -10,7 +11,7 @@ const generateSignature = (data, secret) => {
 
 // Initiate Payment
 const initiatePayment = async (req, res) => {
-  const { cart, userId, totalAmount } = req.body;
+  const { cart, userId, totalAmount, farmId } = req.body;
   const transactionUuid = Date.now().toString();
   console.log(totalAmount);
 
@@ -37,6 +38,8 @@ const initiatePayment = async (req, res) => {
     totalAmount,
     transactionUuid,
     status: "pending", // Add initial status
+    farmId: new mongoose.Types.ObjectId(farmId),
+    isCartOrder: true, // Mark as cart order
   });
   await transaction.save();
 
@@ -96,7 +99,10 @@ const createSingleItemPayment = async (req, res) => {
       ],
       totalAmount,
       transactionUuid,
-      status: "pending", // Add initial status
+      status: "pending",
+      // Add initial status
+      farmId: product.farmer,
+      isCartOrder: true, // Mark as cart order
     });
     await transaction.save();
 
@@ -108,6 +114,7 @@ const createSingleItemPayment = async (req, res) => {
 };
 
 // Verify Payment
+// C:\Users\CHME\Desktop\freshly-local\Backend\src\controllers\PaymentController.js
 const verifyPayment = async (req, res) => {
   const { data } = req.query;
 
@@ -117,7 +124,6 @@ const verifyPayment = async (req, res) => {
       return res.redirect(process.env.FAILURE_URL);
     }
 
-    // Decode the base64 data from eSewa
     const decodedData = JSON.parse(Buffer.from(data, "base64").toString());
     const {
       transaction_code,
@@ -128,9 +134,6 @@ const verifyPayment = async (req, res) => {
       signature,
     } = decodedData;
 
-    console.log("eSewa Response:", decodedData); // Debug log
-
-    // Verify the signature
     const dataString = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
     const expectedSignature = generateSignature(
       dataString,
@@ -142,7 +145,6 @@ const verifyPayment = async (req, res) => {
       return res.redirect(process.env.FAILURE_URL);
     }
 
-    // Find the transaction
     const transaction = await Transaction.findOne({
       transactionUuid: transaction_uuid,
     });
@@ -151,33 +153,32 @@ const verifyPayment = async (req, res) => {
       return res.redirect(process.env.FAILURE_URL);
     }
 
-    console.log("Transaction before update:", transaction); // Debug log
-
-    // Update status and clear cart if successful
     if (
       status === "COMPLETE" &&
       transaction.totalAmount === parseFloat(total_amount)
     ) {
-      transaction.status = "completed"; // Changed to "completed"
+      transaction.status = "completed";
+      transaction.updatedAt = Date.now();
+      // Set a default delivery date (e.g., 3 days from now)
+      transaction.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       await transaction.save();
 
-      console.log("Transaction after update:", transaction); // Debug log
+      // Notify farmer (placeholder)
+      console.log(
+        `Order ${transaction_uuid} completed. Notify farmer ${transaction.farmId}`
+      );
 
-      // Clear the cart
       const cartUpdate = await Cart.findOneAndUpdate(
         { consumer: transaction.consumer },
         { items: [] },
         { new: true }
       );
-      console.log("Cart cleared:", cartUpdate);
-
       return res.redirect(
         `${process.env.SUCCESS_URL}?farmId=${transaction.farmId}`
       );
     } else {
       transaction.status = "unpaid";
       await transaction.save();
-      console.log("Payment incomplete, status set to unpaid:", transaction);
       return res.redirect(process.env.FAILURE_URL);
     }
   } catch (error) {

@@ -1,9 +1,12 @@
 // C:\Users\CHME\Desktop\freshly-local\Backend\src\routes\orderRoutes.js
 const express = require("express");
 const router = express.Router();
-const { getOrders } = require("../controllers/orderController");
+const {
+  getOrders,
+  getFarmerOrders,
+} = require("../controllers/orderController");
 const protect = require("../middleware/authMiddleware");
 
 router.get("/", protect, getOrders);
-
+router.get("/orders", protect, getFarmerOrders);
 module.exports = router;

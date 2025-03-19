@@ -1,5 +1,7 @@
 const User = require("../models/User");
 const jwt = require("jsonwebtoken");
+const Product = require("../models/Product");
+const Transaction = require("../models/Transaction");
 
 // Sign up user
 const signup = async (req, res) => {
@@ -157,6 +159,46 @@ const getMe = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+const getFarmerStats = async (req, res) => {
+  try {
+    const farmerId = req.user._id;
+
+    // Total Products
+    const totalProducts = await Product.countDocuments({ farmer: farmerId });
+
+    // Total Orders
+    const totalOrders = await Transaction.countDocuments({ farmId: farmerId });
+
+    // Monthly Earnings (last 30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const monthlyOrders = await Transaction.find({
+      farmId: farmerId,
+      createdAt: { $gte: thirtyDaysAgo },
+      status: "completed", // Only completed orders count towards earnings
+    });
+    const monthlyEarnings = monthlyOrders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0
+    );
+
+    // Pending Orders
+    const pendingOrders = await Transaction.countDocuments({
+      farmId: farmerId,
+      status: "pending",
+    });
+
+    res.json({
+      totalProducts,
+      totalOrders,
+      monthlyEarnings,
+      pendingOrders,
+    });
+  } catch (error) {
+    console.error("Error fetching farmer stats:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
 module.exports = {
   signup,
   login,
@@ -165,6 +207,7 @@ module.exports = {
   getAllFarms,
   getFarmById,
   getMe,
+  getFarmerStats,
 };
 
 //farmer id each ..params totake form url

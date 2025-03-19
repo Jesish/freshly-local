@@ -26,6 +26,13 @@ const transactionSchema = new mongoose.Schema({
   status: { type: String, default: "pending" },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  deliveryDate: { type: Date },
+  // isCartOrder: { type: Boolean, default: false }, // New field
+  farmId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
 });
 
 module.exports = mongoose.model("Transaction", transactionSchema);
