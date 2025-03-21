@@ -3,7 +3,7 @@ import axios from "axios";
 import { X, PlusCircle, MinusCircle, ShoppingBag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const CartModal = ({ isOpen, setIsOpen }) => {
+const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
   const [cartItems, setCartItems] = useState([]);
   const navigate = useNavigate();
 
@@ -19,6 +19,7 @@ const CartModal = ({ isOpen, setIsOpen }) => {
         },
       });
       setCartItems(data.items || []);
+      if (onCartUpdate) await onCartUpdate();
     } catch (error) {
       console.error("Error fetching cart:", error);
       setCartItems([]);
@@ -40,6 +41,7 @@ const CartModal = ({ isOpen, setIsOpen }) => {
         }
       );
       fetchCart();
+      if (onCartUpdate) await onCartUpdate(); // Update Navbar count
     } catch (error) {
       console.error("Error updating quantity:", error);
     }
@@ -54,6 +56,7 @@ const CartModal = ({ isOpen, setIsOpen }) => {
         },
       });
       fetchCart();
+      if (onCartUpdate) await onCartUpdate();
     } catch (error) {
       console.error("Error removing item:", error);
     }
@@ -65,6 +68,7 @@ const CartModal = ({ isOpen, setIsOpen }) => {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       fetchCart();
+      if (onCartUpdate) await onCartUpdate();
     } catch (error) {
       console.error("Error clearing cart:", error);
     }

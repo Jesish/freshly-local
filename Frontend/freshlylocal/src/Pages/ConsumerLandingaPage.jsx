@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import farmer from "../assets/farmer.png";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import Navbar from "./Navbar";
 const LandingPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token"); // Check if token exists
@@ -34,60 +35,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between border-b">
-        <div className="flex items-center gap-2">
-          <img
-            src="/api/placeholder/32/32"
-            alt="Freshly Local"
-            className="h-8"
-          />
-          <span className="text-green-600 font-semibold text-xl">
-            Freshly Local
-          </span>
-        </div>
-
-        {/* Conditionally Render Navigation */}
-        {!token ? (
-          <div className="flex items-center gap-4">
-            <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-              Start Selling
-            </button>
-            <button
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              onClick={() => navigate("/login")}
-            >
-              Login
-            </button>
-            <button className="text-gray-600 hover:text-gray-800">
-              <ShoppingCart className="w-6 h-6" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-6 text-gray-600">
-            <button
-              onClick={() => navigate("/")}
-              className="flex flex-col items-center hover:text-gray-800"
-            >
-              <Home className="w-6 h-6" />
-              <span className="text-xs">Home</span>
-            </button>
-            <button
-              onClick={() => navigate("/consumerprofile")}
-              className="flex flex-col items-center hover:text-gray-800"
-            >
-              <User className="w-6 h-6" />
-              <span className="text-xs">Account</span>
-            </button>
-            <button
-              onClick={() => navigate("/cart")}
-              className="flex flex-col items-center hover:text-gray-800"
-            >
-              <ShoppingCart className="w-6 h-6" />
-              <span className="text-xs">Cart</span>
-            </button>
-          </div>
-        )}
-      </header>
+      <Navbar />
 
       {/* Hero Section */}
       <div className="px-6 py-12 grid grid-cols-2 gap-8 max-w-7xl mx-auto">
@@ -186,6 +134,7 @@ const LandingPage = () => {
           </div>
         </div>
       </footer>
+      {/* <CartModal isOpen={isCartOpen} setIsOpen={setIsCartOpen} /> */}
     </div>
   );
 };

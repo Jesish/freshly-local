@@ -13,8 +13,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 const OrderHistory = () => {
-  const { id } = useParams();
-
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [farmerDetails, setFarmerDetails] = useState(null);
@@ -39,21 +37,21 @@ const OrderHistory = () => {
   const fetchFarmerDetails = async (id) => {
     try {
       const { data } = await axios.get(
-        `http://localhost:5000/api/products/farmer/${id}`,
+        `http://localhost:5000/api/users/farm/${id}`,
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
       setFarmerDetails({
         farmName: data.farmName,
-        farmerName: data.farmerName,
+        fullName: data.farmerName,
         farmLocation: data.farmLocation,
       });
     } catch (error) {
       console.error("Error fetching farmer details:", error);
       setFarmerDetails({
         farmName: "Unknown Farm",
-        farmerName: "Unknown Farmer",
+        fullName: "Unknown Farmer",
       });
     }
   };
@@ -77,8 +75,13 @@ const OrderHistory = () => {
 
   const handleViewDetails = (order) => {
     setSelectedOrder(order);
-    fetchFarmerDetails(order.farmId);
+    console.log(order);
+    
+    if (order.items.length > 0) {
+      fetchFarmerDetails(order.items[0].farm_id); // Get farm_id from the first item
+    }
   };
+  
 
   const closeModal = () => {
     setSelectedOrder(null);
@@ -204,7 +207,7 @@ const OrderHistory = () => {
                     </p>
                     <p className="text-gray-600">
                       <span className="font-medium">Farmer:</span>{" "}
-                      {farmerDetails.farmerName}
+                      {farmerDetails.fullName}
                     </p>
                     <p className="text-gray-600">
                       <span className="font-medium">Location:</span>{" "}

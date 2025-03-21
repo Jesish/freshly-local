@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useParams } from "react-router-dom";
-import { ShoppingCart, Home, User, DollarSign, Leaf } from "lucide-react";
-import CartModal from "./Cartmodel";
+import { ShoppingCart, DollarSign } from "lucide-react";
+import Navbar from "./Navbar";
+import Toast from "./Toast";
 
 const categories = [
   "All",
@@ -22,9 +23,8 @@ const ProductPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(0); // New state for cart count
-
+  const [toastVisible, setToastVisible] = useState(false);
+  const [fetchCartCount, setFetchCartCount] = useState(null);
   useEffect(() => {
     if (!id) return;
 
@@ -45,23 +45,7 @@ const ProductPage = () => {
     };
 
     fetchProducts();
-    fetchCartCount(); // Fetch initial cart count
   }, [id]);
-
-  // Fetch cart count
-  const fetchCartCount = async () => {
-    try {
-      const { data } = await axios.get("http://localhost:5000/api/getcart", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-      setCartCount(data.items ? data.items.length : 0);
-    } catch (error) {
-      console.error("Error fetching cart count:", error);
-      setCartCount(0);
-    }
-  };
 
   const filteredProducts = products.filter((product) => {
     const matchesCategory =
@@ -72,11 +56,11 @@ const ProductPage = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (productId, farmId) => {
     try {
       await axios.post(
         "http://localhost:5000/api/cart",
-        { productId, quantity: 1 },
+        { productId, quantity: 1, farm_id: farmId },
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -84,8 +68,10 @@ const ProductPage = () => {
           },
         }
       );
-      setIsCartOpen(true);
-      fetchCartCount(); // Update cart count after adding
+      setToastVisible(true); // Show toast
+      if (fetchCartCount) {
+        await fetchCartCount(); // Update cart count in Navbar
+      }
     } catch (error) {
       console.error("Error adding to cart:", error);
     }
@@ -105,7 +91,6 @@ const ProductPage = () => {
       );
 
       const paymentData = response.data;
-
       const form = document.createElement("form");
       form.method = "POST";
       form.action = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
@@ -125,10 +110,12 @@ const ProductPage = () => {
       alert("Failed to initiate payment. Please try again.");
     }
   };
+  const handleCartUpdate = useCallback((fetchFn) => {
+    setFetchCartCount(() => fetchFn);
+  }, []); // Empty dependency array since setFetchCartCount is stable
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Categories Sidebar */}
       <div className="w-64 bg-green-100 p-6 shadow-md">
         <h2 className="text-2xl font-bold text-green-800 mb-6">Categories</h2>
         <ul>
@@ -145,47 +132,8 @@ const ProductPage = () => {
           ))}
         </ul>
       </div>
-
-      {/* Main Content */}
       <div className="flex-1 p-8">
-        {/* Navbar */}
-        <header className="fixed top-0 left-0 right-0 bg-white py-4 px-8 flex justify-between items-center border-b z-10 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Leaf className="text-green-700" size={28} />
-            <span className="text-green-700 font-semibold text-xl">
-              Freshly Local
-            </span>
-          </div>
-          <div className="flex items-center gap-8">
-            <a
-              href="/"
-              className="flex items-center gap-2 text-gray-700 hover:text-green-700 transition-colors"
-            >
-              <Home size={20} />
-              <span className="text-lg">Home</span>
-            </a>
-            <a
-              href="/consumerprofile"
-              className="flex items-center gap-2 text-gray-700 hover:text-green-700 transition-colors"
-            >
-              <User size={20} />
-              <span className="text-lg">Account</span>
-            </a>
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-2 text-gray-700 hover:text-green-700 transition-colors relative"
-            >
-              <ShoppingCart size={20} />
-              <span className="text-lg">Cart</span>
-              {cartCount > 0 && (
-                <span className="absolute -top-2 -right-4 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
-          </div>
-        </header>
-
+        <Navbar onCartUpdate={handleCartUpdate} /> {/* Use memoized function */}{" "}
         <div className="mt-20">
           <div className="mb-8">
             <input
@@ -217,7 +165,7 @@ const ProductPage = () => {
                     </p>
                     <div className="flex gap-3 mt-4">
                       <button
-                        onClick={() => handleAddToCart(product._id)}
+                        onClick={() => handleAddToCart(product._id, id)}
                         className="flex-1 p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                       >
                         <ShoppingCart size={16} />
@@ -241,9 +189,12 @@ const ProductPage = () => {
             )}
           </div>
         </div>
+        <Toast
+          message="Product added to cart successfully!"
+          isVisible={toastVisible}
+          setIsVisible={setToastVisible}
+        />
       </div>
-
-      <CartModal isOpen={isCartOpen} setIsOpen={setIsCartOpen} />
     </div>
   );
 };

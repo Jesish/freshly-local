@@ -64,7 +64,7 @@ const login = async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "24h",
     });
 
     res.json({
@@ -138,7 +138,7 @@ const getFarmById = async (req, res) => {
       farmImage: farm.farmImage,
       farmdescription: farm.farmdescription,
       farmerName: farm.fullName,
-      farmerEmail: farm.email,
+      farmerEmail: farm.email,  
       farmerPhone: farm.phoneNumber,
     });
   } catch (error) {
@@ -199,6 +199,40 @@ const getFarmerStats = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
+// C:\Users\CHME\Desktop\freshly-local\Backend\src\controllers\farmerController.js
+
+const getFarmerProfile = async (req, res) => {
+  try {
+    // Fetch the authenticated farmer's data by their ID (from protect middleware)
+    const farmer = await User.findById(req.user._id).select("-password"); // Exclude password
+
+    if (!farmer) {
+      return res.status(404).json({ msg: "Farmer not found" });
+    }
+
+    // Ensure the user is a farmer
+    if (farmer.userType !== "farmer") {
+      return res.status(403).json({ msg: "Not authorized as a farmer" });
+    }
+
+    // Return farmer-specific details
+    res.json({
+      fullName: farmer.fullName,
+      email: farmer.email,
+      phoneNumber: farmer.phoneNumber,
+      farmName: farmer.farmName,
+      farmLocation: farmer.farmLocation,
+      farmImage: farmer.farmImage,
+      farmdescription: farmer.farmdescription,
+      userType: farmer.userType,
+    });
+  } catch (error) {
+    console.error("Error fetching farmer profile:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -208,6 +242,7 @@ module.exports = {
   getFarmById,
   getMe,
   getFarmerStats,
+  getFarmerProfile,
 };
 
 //farmer id each ..params totake form url

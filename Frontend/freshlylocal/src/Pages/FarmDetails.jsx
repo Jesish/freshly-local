@@ -11,12 +11,14 @@ import {
   Leaf,
   Edit2,
   Trash2,
+  MessageSquare,
 } from "lucide-react";
-import farmimage from "../assets/Farm.png";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import farmer from "../assets/farm.png";
+import Navbar from "./Navbar";
+import ChatPopup from "./ChatPopup";
 
 const FarmProfilePage = () => {
   const navigate = useNavigate();
@@ -31,6 +33,7 @@ const FarmProfilePage = () => {
   const [editForm, setEditForm] = useState({ rating: 0, review: "" }); // Edit form state
   const [consumerName, setConsumerName] = useState("");
   const [consumerId, setConsumerId] = useState(""); // Store logged-in user's ID
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Fetch farm details
   useEffect(() => {
@@ -173,29 +176,7 @@ const FarmProfilePage = () => {
   return (
     <div className="min-h-screen flex flex-col bg-white">
       {/* Header */}
-      <header className="bg-white py-4 px-6 flex justify-between items-center border-b">
-        <div className="flex items-center gap-2">
-          <Leaf className="text-green-700" />
-          <span className="text-green-700 font-semibold">Freshly Local</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <a href="/" className="flex items-center gap-1 text-gray-700">
-            <Home size={18} />
-            <span>Home</span>
-          </a>
-          <a
-            href="/consumerprofile"
-            className="flex items-center gap-1 text-gray-700"
-          >
-            <User size={18} />
-            <span>Account</span>
-          </a>
-          <a href="/cart" className="flex items-center gap-1 text-gray-700">
-            <ShoppingCart size={18} />
-            <span>Cart</span>
-          </a>
-        </div>
-      </header>
+      <Navbar />
 
       {/* Main Content */}
       <main className="flex-1">
@@ -250,6 +231,12 @@ const FarmProfilePage = () => {
               </div>
             </div>
           </div>
+          <button
+            onClick={() => setIsChatOpen(true)} // Open chat with farmer
+            className="mt-6 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            <MessageSquare size={20} /> Message Farmer
+          </button>
         </section>
 
         {/* Contact Information */}
@@ -626,6 +613,14 @@ const FarmProfilePage = () => {
           © 2025 FreshlyLocal. All rights reserved.
         </div>
       </footer>
+
+      {/* Chat Popup for Farmer */}
+      {isChatOpen && (
+        <ChatPopup
+          user={{ id: farm._id, name: farm.farmName }} // Pass farmer details
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,6 @@
 const Cart = require("../models/cart");
 const Product = require("../models/Product");
+const User = require("../models/User");
 const mongoose = require("mongoose");
 
 const addToCart = async (req, res) => {
@@ -9,7 +10,7 @@ const addToCart = async (req, res) => {
       return res.status(403).json({ msg: "Only consumers can add to cart" });
     }
 
-    const { productId, quantity } = req.body;
+    const { productId, quantity, farm_id } = req.body;
     console.log("Received Data:", req.body);
     console.log("Product ID:", productId);
     console.log(
@@ -24,6 +25,7 @@ const addToCart = async (req, res) => {
 
     // Find the product in the database
     const product = await Product.findById(productId);
+    console.log(product);
     if (!product) {
       return res.status(404).json({ msg: "Product not found" });
     }
@@ -46,7 +48,12 @@ const addToCart = async (req, res) => {
       existingItem.quantity += quantity;
     } else {
       // Otherwise, add a new item to the cart
-      cart.items.push({ product: product._id, quantity, price: product.price });
+      cart.items.push({
+        product: product._id,
+        quantity,
+        price: product.price,
+        farm_id: product.farmer,
+      });
     }
 
     // Save the cart to the database

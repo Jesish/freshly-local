@@ -11,7 +11,8 @@ const generateSignature = (data, secret) => {
 
 // Initiate Payment
 const initiatePayment = async (req, res) => {
-  const { cart, userId, totalAmount, farmId } = req.body;
+  const { cart, userId, totalAmount } = req.body;
+  console.log("Cart:", cart);
   const transactionUuid = Date.now().toString();
   console.log(totalAmount);
 
@@ -38,7 +39,6 @@ const initiatePayment = async (req, res) => {
     totalAmount,
     transactionUuid,
     status: "pending", // Add initial status
-    farmId: new mongoose.Types.ObjectId(farmId),
     isCartOrder: true, // Mark as cart order
   });
   await transaction.save();
@@ -95,13 +95,14 @@ const createSingleItemPayment = async (req, res) => {
           },
           quantity: 1,
           price: product.price,
+          farm_id: product.farmer,
         },
       ],
       totalAmount,
       transactionUuid,
       status: "pending",
       // Add initial status
-      farmId: product.farmer,
+      // farmId: product.farmer,
       isCartOrder: true, // Mark as cart order
     });
     await transaction.save();
