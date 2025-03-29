@@ -9,6 +9,7 @@ const cartRoutes = require("./src/routes/cartRoutes");
 const paymentRoutes = require("./src/routes/PaymentRoutes");
 const ReviewRoutes = require("./src/routes/ReviewRoutes");
 const orderRoutes = require("./src/routes/orderRoutes");
+const messageRoutes = require("./src/routes/messageRoutes");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -25,6 +26,7 @@ app.use("/api", cartRoutes);
 app.use("/api/payment", paymentRoutes);
 app.use("/api/reviews", ReviewRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api", messageRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

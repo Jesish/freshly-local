@@ -15,6 +15,8 @@ import PaymentPage from "./Pages/PaymentPage";
 import SuccessPage from "./Pages/SuccessPage";
 import FailurePage from "./Pages/FailurePage";
 import OrderHistory from "./Pages/OrderHistory";
+import Messages from "./Pages/FarmerMessage";
+import ChatPage from "./Pages/Chatpage";
 
 function App() {
   return (
@@ -30,6 +32,7 @@ function App() {
         <Route path="/order" element={<Order />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<LandingPage />} />
+        <Route path="/messages" element={<Messages />} />
         <Route path="/farmdescription/:id" element={<FarmProfilePage />} />
         <Route path="/consumerprofile" element={<ConsumerProfile />} />
         <Route path="/ProductPage/:id" element={<Product />} />
@@ -37,6 +40,8 @@ function App() {
         <Route path="/success" element={<SuccessPage />} />
         <Route path="/failure" element={<FailurePage />} />
         <Route path="/orders" element={<OrderHistory />} />
+        <Route path="messages/:conversationId" element={<ChatPage />} />
+
       </Routes>
       {/* <Signup />
       <Login /> */}

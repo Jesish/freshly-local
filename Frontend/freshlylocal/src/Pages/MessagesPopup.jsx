@@ -1,101 +1,86 @@
-// C:\Users\CHME\Desktop\freshly-local\frontend\src\components\MessagesPopup.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, MessageSquare, MoreHorizontal, Search, Edit } from "lucide-react";
+import axios from "axios";
+import { useChat } from "./ChatContext"; // Ensure correct path
 
-const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
+const MessagesPopup = ({ isOpen, setIsOpen }) => {
+  const { openChat } = useChat(); // This should now work
   const [searchQuery, setSearchQuery] = useState("");
+  const [conversations, setConversations] = useState([]);
 
-  // Dummy data for conversations (replace with API data later)
-  const conversations = [
-    {
-      id: 1,
-      name: "Farmer John",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "You: aaba dhat",
-      timestamp: "12m",
-      online: true,
-    },
-    {
-      id: 2,
-      name: "Farmer Jane",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "No room found vano",
-      timestamp: "1h",
-      online: false,
-    },
-    {
-      id: 3,
-      name: "Farmer Bob",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "You: Ok",
-      timestamp: "3h",
-      online: false,
-    },
-    {
-      id: 4,
-      name: "Farmer Alice",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "Testai xa tei vara nth change",
-      timestamp: "3h",
-      online: false,
-    },
-    {
-      id: 5,
-      name: "Farmer Sam",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "😊",
-      timestamp: "5h",
-      online: false,
-    },
-    {
-      id: 6,
-      name: "Farmer Kamal",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "Um",
-      timestamp: "5h",
-      online: true,
-    },
-    {
-      id: 7,
-      name: "Farmer Acharya",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "Eah",
-      timestamp: "12h",
-      online: false,
-    },
-    {
-      id: 8,
-      name: "Farmer Lily",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "Hey there!",
-      timestamp: "1d",
-      online: false,
-    },
-    {
-      id: 9,
-      name: "Farmer Mike",
-      avatar: "/api/placeholder/40/40",
-      lastMessage: "Thanks for the order",
-      timestamp: "2d",
-      online: false,
-    },
-  ];
+  useEffect(() => {
+    if (isOpen) {
+      fetchConversations();
+    }
+  }, [isOpen]);
 
-  // Filter conversations based on search query
+  const fetchConversations = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("No token found");
+
+      const userResponse = await axios.get(
+        "http://localhost:5000/api/users/me",
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      const userId = userResponse.data._id;
+
+      const { data } = await axios.get(
+        "http://localhost:5000/api/conversations",
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
+      const formattedConversations = data.map((conv) => {
+        const otherParticipant = conv.participants.find(
+          (p) => p._id !== userId
+        );
+        return {
+          id: conv._id,
+          name: otherParticipant?.fullName || "Unknown User",
+          avatar: otherParticipant?.farmImage || "/api/placeholder/40/40",
+          lastMessage: conv.lastMessage
+            ? conv.lastMessage.text
+            : "No messages yet",
+          timestamp: new Date(conv.updatedAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          online: false,
+          recipientId: otherParticipant?._id,
+        };
+      });
+
+      setConversations(formattedConversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      setConversations([]);
+    }
+  };
+
   const filteredConversations = conversations.filter((conv) =>
     conv.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelectChat = (user) => {
-    onOpenChat(user); // Open the chat using the prop
-    setIsOpen(false); // Optionally close the MessagesPopup
+  const handleSelectChat = (conv) => {
+    openChat({
+      id: conv.id,
+      name: conv.name,
+      avatar: conv.avatar,
+      recipientId: conv.recipientId,
+    });
+    setIsOpen(false);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-16 right-4 w-80 h-[74vh] bg-white shadow-2xl z-50 flex flex-col rounded-lg border border-gray-200">
-      {/* Header */}
+    <div className="fixed top-16 right-4 w-80 h-[60vh] bg-white shadow-2xl z-50 flex flex-col rounded-lg border border-gray-200">
       <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between rounded-t-lg">
         <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
           <MessageSquare size={20} className="text-green-600" /> Chats
@@ -116,7 +101,6 @@ const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
         </div>
       </div>
 
-      {/* Search Bar */}
       <div className="p-3 border-b border-gray-200">
         <div className="relative">
           <Search
@@ -133,7 +117,6 @@ const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
         </div>
       </div>
 
-      {/* Conversations List */}
       <div className="flex-1 overflow-y-auto">
         {filteredConversations.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-500">
@@ -147,7 +130,6 @@ const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
                 onClick={() => handleSelectChat(conv)}
                 className="p-3 flex items-center gap-3 hover:bg-gray-50 cursor-pointer transition-colors"
               >
-                {/* Avatar */}
                 <div className="relative">
                   <img
                     src={conv.avatar}
@@ -158,7 +140,6 @@ const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
                     <span className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></span>
                   )}
                 </div>
-                {/* Name and Last Message */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">
                     {conv.name}
@@ -167,7 +148,6 @@ const MessagesPopup = ({ isOpen, setIsOpen, onOpenChat }) => {
                     {conv.lastMessage}
                   </p>
                 </div>
-                {/* Timestamp */}
                 <span className="text-xs text-gray-400">{conv.timestamp}</span>
               </li>
             ))}

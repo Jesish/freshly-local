@@ -1,40 +1,130 @@
-// C:\Users\CHME\Desktop\freshly-local\frontend\src\components\ChatPopup.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Send, Phone, Video } from "lucide-react";
+import axios from "axios";
 
 const ChatPopup = ({ user, onClose, index = 0 }) => {
   const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState([
-    { id: 1, text: "Hi! How can I help you today?", sender: "them" },
-    { id: 2, text: "Hey, I had a question about your products.", sender: "me" },
-  ]); // Dummy data
+  const [messages, setMessages] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
+  const messagesEndRef = useRef(null);
+  const isNewConversation = user.recipientId && !user.id; // New if recipientId exists but no conversation ID
 
-  const messagesEndRef = useRef(null); // For auto-scrolling to the bottom
+  useEffect(() => {
+    const initializeChat = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const userResponse = await axios.get(
+          "http://localhost:5000/api/users/me",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`,
+            },
+          }
+        );
+        const currentUserId = userResponse.data._id;
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setMessages([
-      ...messages,
-      { id: messages.length + 1, text: message, sender: "me" },
-    ]);
-    setMessage("");
-    // Add backend send logic here later
+        if (!isNewConversation && user.id) {
+          setConversationId(user.id); // Existing conversation
+        } else {
+          // Check for an existing conversation with this recipient
+          const { data } = await axios.get(
+            "http://localhost:5000/api/conversations",
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          const existingConv = data.find(
+            (conv) =>
+              conv.participants.some((p) => p._id === currentUserId) &&
+              conv.participants.some((p) => p._id === user.recipientId)
+          );
+          if (existingConv) {
+            setConversationId(existingConv._id);
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing chat:", error);
+      }
+    };
+    initializeChat();
+  }, [user.id, user.recipientId, isNewConversation]);
+
+  useEffect(() => {
+    if (conversationId) fetchMessages();
+  }, [conversationId]);
+
+  const fetchMessages = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const userResponse = await axios.get(
+        "http://localhost:5000/api/users/me",
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      const currentUserId = userResponse.data._id;
+
+      const { data } = await axios.get(
+        `http://localhost:5000/api/messages/${conversationId}`,
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
+      const formattedMessages = data.map((msg) => ({
+        id: msg._id,
+        text: msg.text,
+        sender: msg.sender._id === currentUserId ? "me" : "them",
+      }));
+
+      setMessages(formattedMessages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    }
   };
 
-  // Auto-scroll to the bottom when new messages are added
+  const handleSend = async () => {
+    if (!message.trim()) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      const recipientId = user.recipientId || user.id;
+      const { data } = await axios.post(
+        "http://localhost:5000/api/message",
+        { recipientId, text: message },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
+      if (isNewConversation && data.conversationId) {
+        setConversationId(data.conversationId);
+      }
+
+      setMessages([
+        ...messages,
+        { id: data._id, text: data.text, sender: "me" },
+      ]);
+      setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Calculate the right offset based on the index (stack chats horizontally)
-  const rightOffset = 4 + index * 320; // 4rem base + 320px for each chat
+  const rightOffset = 4 + index * 320;
 
   return (
     <div
-      className="fixed bottom-8 w-80 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col h-[450px] z-40"
+      className="fixed bottom-6 w-80 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col h-[450px] z-70!important"
       style={{ right: `${rightOffset}px` }}
     >
-      {/* Header */}
+      {/* Rest of the JSX remains unchanged */}
       <div className="p-3 bg-green-50 border-b border-gray-200 flex items-center justify-between rounded-t-lg">
         <div className="flex items-center gap-2">
           <img
@@ -60,7 +150,6 @@ const ChatPopup = ({ user, onClose, index = 0 }) => {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
         {messages.map((msg) => (
           <div
@@ -83,7 +172,6 @@ const ChatPopup = ({ user, onClose, index = 0 }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="p-3 border-t border-gray-200 bg-white rounded-b-lg">
         <div className="flex items-center gap-2">
           <textarea

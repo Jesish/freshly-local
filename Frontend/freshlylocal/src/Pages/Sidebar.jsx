@@ -34,6 +34,11 @@ const Sidebar = () => {
       path: "/order",
     },
     {
+      icon: <ClipboardList className="w-5 h-5" />,
+      label: "Messages",
+      path: "/messages",
+    },
+    {
       icon: <User className="w-5 h-5" />,
       label: "Profile",
       path: "/profile",

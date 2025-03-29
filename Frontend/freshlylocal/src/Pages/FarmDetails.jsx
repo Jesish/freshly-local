@@ -1,3 +1,4 @@
+// C:\Users\CHME\Desktop\freshly-local\frontend\src\Pages\FarmDetails.jsx
 import {
   MapPin,
   Home,
@@ -15,10 +16,11 @@ import {
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useChat } from "./ChatContext";
 import axios from "axios";
 import farmer from "../assets/farm.png";
 import Navbar from "./Navbar";
-import ChatPopup from "./ChatPopup";
+import ChatPopup from "./ChatPopup"; // Import ChatPopup directly
 
 const FarmProfilePage = () => {
   const navigate = useNavigate();
@@ -29,13 +31,12 @@ const FarmProfilePage = () => {
     rating: 0,
     review: "",
   });
-  const [editReviewId, setEditReviewId] = useState(null); // Track review being edited
-  const [editForm, setEditForm] = useState({ rating: 0, review: "" }); // Edit form state
+  const [editReviewId, setEditReviewId] = useState(null);
+  const [editForm, setEditForm] = useState({ rating: 0, review: "" });
   const [consumerName, setConsumerName] = useState("");
-  const [consumerId, setConsumerId] = useState(""); // Store logged-in user's ID
-  const [isChatOpen, setIsChatOpen] = useState(false);
-
-  // Fetch farm details
+  const [consumerId, setConsumerId] = useState("");
+  const [isChatOpen, setIsChatOpen] = useState(false); // Reintroduce isChatOpen
+  const { openChat } = useChat();
   useEffect(() => {
     const fetchFarmDetails = async () => {
       try {
@@ -55,7 +56,6 @@ const FarmProfilePage = () => {
     fetchFarmDetails();
   }, [id]);
 
-  // Fetch reviews
   useEffect(() => {
     const fetchReviews = async () => {
       try {
@@ -71,7 +71,6 @@ const FarmProfilePage = () => {
     fetchReviews();
   }, [id]);
 
-  // Fetch consumer details
   useEffect(() => {
     const fetchConsumerDetails = async () => {
       try {
@@ -79,7 +78,7 @@ const FarmProfilePage = () => {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         setConsumerName(response.data.fullName);
-        setConsumerId(response.data._id); // Store consumer ID
+        setConsumerId(response.data._id);
       } catch (error) {
         console.error("Error fetching consumer details:", error);
         setConsumerName("Anonymous");
@@ -175,12 +174,8 @@ const FarmProfilePage = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
-      {/* Header */}
       <Navbar />
-
-      {/* Main Content */}
       <main className="flex-1">
-        {/* Farm Description Section */}
         <section className="px-6 py-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="rounded-lg overflow-hidden shadow-md">
             <img
@@ -207,7 +202,6 @@ const FarmProfilePage = () => {
           </div>
         </section>
 
-        {/* About the Farm */}
         <section className="bg-green-50 py-12 px-6">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-semibold text-green-800 mb-6 text-center">
@@ -232,14 +226,19 @@ const FarmProfilePage = () => {
             </div>
           </div>
           <button
-            onClick={() => setIsChatOpen(true)} // Open chat with farmer
-            className="mt-6 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            onClick={() =>
+              openChat({
+                id: User._id,//changed for the error 403 error one.....
+                name: farm.farmName,
+                recipientId: id,
+              })
+            }
+            className="mt-6 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
           >
             <MessageSquare size={20} /> Message Farmer
           </button>
         </section>
 
-        {/* Contact Information */}
         <section className="py-12 px-6">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-semibold text-green-800 mb-6">
@@ -267,14 +266,11 @@ const FarmProfilePage = () => {
           </div>
         </section>
 
-        {/* Customer Reviews */}
         <section className="py-12 px-6">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-semibold text-green-800 mb-8 text-center">
               Customer Reviews
             </h2>
-
-            {/* Reviews Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
               {reviews.length === 0 ? (
                 <p className="text-center text-gray-500 col-span-2">
@@ -287,7 +283,6 @@ const FarmProfilePage = () => {
                     className="bg-white p-6 rounded-lg shadow-sm"
                   >
                     {editReviewId === review._id ? (
-                      // Edit Form
                       <form onSubmit={handleUpdateReview}>
                         <div className="mb-4">
                           <label className="block text-gray-700 mb-2">
@@ -343,7 +338,6 @@ const FarmProfilePage = () => {
                         </div>
                       </form>
                     ) : (
-                      // Display Review
                       <>
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
@@ -400,7 +394,6 @@ const FarmProfilePage = () => {
               )}
             </div>
 
-            {/* Write a Review Form */}
             <div className="max-w-2xl mx-auto">
               <h3 className="text-xl font-medium text-green-800 mb-4 text-center">
                 Write a Review
@@ -415,7 +408,6 @@ const FarmProfilePage = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
                   />
                 </div>
-
                 <div className="mb-4">
                   <label className="block text-gray-700 mb-2">Rating</label>
                   <div className="flex gap-1">
@@ -438,7 +430,6 @@ const FarmProfilePage = () => {
                     ))}
                   </div>
                 </div>
-
                 <div className="mb-4">
                   <label className="block text-gray-700 mb-2">
                     Your Review
@@ -452,7 +443,6 @@ const FarmProfilePage = () => {
                     required
                   ></textarea>
                 </div>
-
                 <button
                   type="submit"
                   className="bg-green-700 hover:bg-green-800 text-white py-2 px-4 rounded-md transition-colors"
@@ -464,13 +454,11 @@ const FarmProfilePage = () => {
           </div>
         </section>
 
-        {/* Similar Farms */}
         <section className="py-12 px-6 bg-green-50">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-2xl font-semibold text-green-800 mb-8 text-center">
               Similar Farms
             </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg overflow-hidden shadow-md">
                 <div className="h-48 overflow-hidden">
@@ -495,7 +483,6 @@ const FarmProfilePage = () => {
                   </a>
                 </div>
               </div>
-
               <div className="bg-white rounded-lg overflow-hidden shadow-md">
                 <div className="h-48 overflow-hidden">
                   <img
@@ -519,7 +506,6 @@ const FarmProfilePage = () => {
                   </a>
                 </div>
               </div>
-
               <div className="bg-white rounded-lg overflow-hidden shadow-md">
                 <div className="h-48 overflow-hidden">
                   <img
@@ -548,7 +534,13 @@ const FarmProfilePage = () => {
         </section>
       </main>
 
-      {/* Footer */}
+      {isChatOpen && (
+        <ChatPopup
+          user={{ id: id, name: farm.farmName, recipientId: id }}
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
+
       <footer className="bg-green-800 text-white py-8 px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
@@ -557,7 +549,6 @@ const FarmProfilePage = () => {
               Connecting you to local farms and fresh produce.
             </p>
           </div>
-
           <div>
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm text-green-100">
@@ -578,7 +569,6 @@ const FarmProfilePage = () => {
               </li>
             </ul>
           </div>
-
           <div>
             <h3 className="font-semibold mb-4">Contact</h3>
             <ul className="space-y-2 text-sm text-green-100">
@@ -586,7 +576,6 @@ const FarmProfilePage = () => {
               <li>(555) 123-4567</li>
             </ul>
           </div>
-
           <div>
             <h3 className="font-semibold mb-4">Follow Us</h3>
             <div className="flex gap-4">
@@ -608,19 +597,10 @@ const FarmProfilePage = () => {
             </div>
           </div>
         </div>
-
         <div className="max-w-6xl mx-auto pt-6 mt-6 border-t border-green-700 text-center text-sm text-green-100">
           © 2025 FreshlyLocal. All rights reserved.
         </div>
       </footer>
-
-      {/* Chat Popup for Farmer */}
-      {isChatOpen && (
-        <ChatPopup
-          user={{ id: farm._id, name: farm.farmName }} // Pass farmer details
-          onClose={() => setIsChatOpen(false)}
-        />
-      )}
     </div>
   );
 };
