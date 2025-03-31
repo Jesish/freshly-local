@@ -6,6 +6,8 @@ const {
   getConversations,
   getMessages,
   sendMessage,
+  editMessage,
+  deleteMessage,
 } = require("../controllers/messageController");
 
 // Get all conversations for the logged-in user
@@ -14,7 +16,8 @@ router.get("/conversations", protect, getConversations);
 // Get messages for a specific conversation
 router.get("/messages/:conversationId", protect, getMessages);
 
-// Send a message (creates a new conversation if needed)
 router.post("/message", protect, sendMessage);
+router.put("/message", protect, editMessage);
+router.delete("/message/:messageId", protect, deleteMessage);
 
 module.exports = router;

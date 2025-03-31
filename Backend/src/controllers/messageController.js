@@ -62,31 +62,26 @@ const sendMessage = async (req, res) => {
   try {
     const userId = req.user._id;
     const { recipientId, text } = req.body;
+    const io = req.app.get("io"); // Access Socket.IO instance
 
-    // Validate recipientId
     if (!recipientId || !mongoose.Types.ObjectId.isValid(recipientId)) {
       return res.status(400).json({ message: "Invalid recipient ID" });
     }
 
-    // Validate recipient
     const recipient = await User.findById(recipientId);
     if (!recipient) {
       return res.status(404).json({ message: "Recipient not found" });
     }
 
-    // Check if a conversation already exists between the two users
     let conversation = await Conversation.findOne({
       participants: { $all: [userId, recipientId] },
     });
 
     if (!conversation) {
-      conversation = new Conversation({
-        participants: [userId, recipientId],
-      });
+      conversation = new Conversation({ participants: [userId, recipientId] });
       await conversation.save();
     }
 
-    // Create the message
     const message = new Message({
       conversationId: conversation._id,
       sender: userId,
@@ -95,22 +90,98 @@ const sendMessage = async (req, res) => {
     });
     await message.save();
 
-    // Update the conversation's last message and timestamp
     conversation.lastMessage = message._id;
     conversation.updatedAt = Date.now();
     await conversation.save();
 
-    // Populate the message with sender and recipient details
     const populatedMessage = await Message.findById(message._id)
       .populate("sender", "fullName farmImage")
       .populate("recipient", "fullName farmImage");
 
+    // Emit message to the conversation room
+    io.to(conversation._id.toString()).emit("newMessage", {
+      ...populatedMessage._doc,
+      conversationId: conversation._id,
+    });
+
     res.status(201).json({
       ...populatedMessage._doc,
-      conversationId: conversation._id, // Include conversationId in the response
+      conversationId: conversation._id,
     });
   } catch (error) {
     console.error("Error sending message:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Edit a message
+const editMessage = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { messageId, text } = req.body;
+    const io = req.app.get("io");
+
+    if (!messageId || !mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: "Invalid message ID" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.sender.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "You can only edit your own messages" });
+    }
+
+    message.text = text;
+    message.edited = true; // Add edited flag
+    await message.save();
+
+    const populatedMessage = await Message.findById(messageId)
+      .populate("sender", "fullName farmImage")
+      .populate("recipient", "fullName farmImage");
+
+    io.to(message.conversationId.toString()).emit("messageEdited", {
+      ...populatedMessage._doc,
+      conversationId: message.conversationId,
+    });
+
+    res.status(200).json(populatedMessage);
+  } catch (error) {
+    console.error("Error editing message:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Delete a message
+const deleteMessage = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { messageId } = req.params;
+    const io = req.app.get("io");
+
+    if (!messageId || !mongoose.Types.ObjectId.isValid(messageId)) {
+      return res.status(400).json({ message: "Invalid message ID" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.sender.toString() !== userId.toString()) {
+      return res.status(403).json({ message: "You can only delete your own messages" });
+    }
+
+    const conversationId = message.conversationId;
+    await message.deleteOne();
+
+    io.to(conversationId.toString()).emit("messageDeleted", { messageId });
+
+    res.status(200).json({ message: "Message deleted" });
+  } catch (error) {
+    console.error("Error deleting message:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -119,4 +190,6 @@ module.exports = {
   getConversations,
   getMessages,
   sendMessage,
+  editMessage,
+  deleteMessage
 };

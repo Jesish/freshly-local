@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import API from "../utils/axiosInstance";
-// import { Leaf } from 'lucide-react';
+import { MapPin } from "lucide-react";
 
 const Signup = () => {
   const [userType, setUserType] = useState("consumer");
@@ -10,13 +10,129 @@ const Signup = () => {
     phoneNumber: "",
     password: "",
     farmName: "",
-    farmLocation: "",
+    farmLocation: { type: "Point", coordinates: [0, 0], placeName: "" }, // Added placeName
     userType: userType,
     termsAccepted: false,
   });
-
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+
+  // Load Google Maps script
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDSaH5APCpRVR7bKzv_q4wVyQy7KQ8F-Jw&libraries=places`;
+    script.async = true;
+    script.onload = () => setMapLoaded(true);
+    document.body.appendChild(script);
+    return () => document.body.removeChild(script);
+  }, []);
+
+  // Initialize map with current location when shown
+  useEffect(() => {
+    if (mapLoaded && showMap && userType === "farmer") {
+      let initialLat = 0;
+      let initialLng = 0;
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            initialLat = position.coords.latitude;
+            initialLng = position.coords.longitude;
+            initializeMap(initialLat, initialLng);
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            initializeMap(initialLat, initialLng); // Fallback to (0, 0)
+          }
+        );
+      } else {
+        initializeMap(initialLat, initialLng); // Fallback if geolocation not supported
+      }
+    }
+  }, [mapLoaded, showMap, userType]);
+
+  const getPlaceNameFromCoords = (lat, lng) => {
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === "OK" && results[0]) {
+        const placeName = results[0].formatted_address;
+        setFormData((prev) => ({
+          ...prev,
+          farmLocation: {
+            ...prev.farmLocation,
+            placeName: placeName,
+          },
+        }));
+        console.log("Place Name:", placeName); // Print place name
+      } else {
+        console.error("Geocoding failed:", status);
+        setFormData((prev) => ({
+          ...prev,
+          farmLocation: {
+            ...prev.farmLocation,
+            placeName: "Unknown location",
+          },
+        }));
+      }
+    });
+  };
+
+  const initializeMap = (lat, lng) => {
+    const map = new window.google.maps.Map(document.getElementById("map"), {
+      center: { lat, lng },
+      zoom: lat === 0 && lng === 0 ? 2 : 15,
+    });
+    const marker = new window.google.maps.Marker({
+      position: { lat, lng },
+      map: map,
+      draggable: true,
+    });
+
+    // Initial geocoding for current location
+    getPlaceNameFromCoords(lat, lng);
+
+    // Update coordinates and place name when marker is dragged
+    window.google.maps.event.addListener(marker, "dragend", () => {
+      const position = marker.getPosition();
+      const newLat = position.lat();
+      const newLng = position.lng();
+      const newCoords = [newLng, newLat];
+      setFormData((prev) => ({
+        ...prev,
+        farmLocation: { ...prev.farmLocation, coordinates: newCoords },
+      }));
+      console.log("Selected Coordinates:", newCoords);
+      getPlaceNameFromCoords(newLat, newLng); // Fetch place name
+    });
+
+    // Places API for search
+    const input = document.getElementById("location-search");
+    const autocomplete = new window.google.maps.places.Autocomplete(input);
+    autocomplete.bindTo("bounds", map);
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (place.geometry) {
+        const newLat = place.geometry.location.lat();
+        const newLng = place.geometry.location.lng();
+        marker.setPosition({ lat: newLat, lng: newLng });
+        map.setCenter({ lat: newLat, lng: newLng });
+        map.setZoom(15);
+        const newCoords = [newLng, newLat];
+        setFormData((prev) => ({
+          ...prev,
+          farmLocation: {
+            ...prev.farmLocation,
+            coordinates: newCoords,
+            placeName: place.formatted_address || "Unknown location",
+          },
+        }));
+        console.log("Selected Coordinates:", newCoords);
+        console.log("Place Name:", place.formatted_address);
+      }
+    });
+  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -25,14 +141,12 @@ const Signup = () => {
       [name]: type === "checkbox" ? checked : value,
     }));
   };
-  console.log(userType);
 
-  // Update userType and also update formData
   const handleUserTypeChange = (type) => {
     setUserType(type);
     setFormData((prev) => ({
       ...prev,
-      userType: type, // Update userType in formData
+      userType: type,
     }));
   };
 
@@ -44,9 +158,7 @@ const Signup = () => {
     try {
       console.log("Form Data:", formData);
       const response = await API.post("/users/signup", formData);
-      // Assuming your backend responds with a success message or token
       if (response.status === 200) {
-        // Handle success - Redirect to login or homepage, etc.
         console.log("Account created successfully:", response.data);
       }
     } catch (err) {
@@ -56,6 +168,10 @@ const Signup = () => {
     }
   };
 
+  const toggleMap = () => {
+    setShowMap(!showMap);
+  };
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-normal mb-6">Create your account</h1>
@@ -63,21 +179,15 @@ const Signup = () => {
       {/* User Type Selection */}
       <div className="flex gap-4 mb-8">
         <button
-          className={`flex-1 py-3 rounded-lg justify-center items-center
-            ${
-              userType === "consumer"
-                ? "border-2 border-green-500 bg-white text-green-600"
-                : "border border-gray-200 bg-white text-gray-600"
-            }`}
-          onClick={() => handleUserTypeChange("consumer")} // Call handleUserTypeChange
+          className={`flex-1 py-3 rounded-lg justify-center items-center ${
+            userType === "consumer"
+              ? "border-2 border-green-500 bg-white text-green-600"
+              : "border border-gray-200 bg-white text-gray-600"
+          }`}
+          onClick={() => handleUserTypeChange("consumer")}
         >
           <div className="flex items-center justify-center gap-2">
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
               <path
                 d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21"
                 stroke="currentColor"
@@ -97,21 +207,15 @@ const Signup = () => {
           </div>
         </button>
         <button
-          className={`flex-1 py-3 rounded-lg justify-center items-center
-            ${
-              userType === "farmer"
-                ? "border-2 border-green-500 bg-white text-green-600"
-                : "border border-gray-200 bg-white text-gray-600"
-            }`}
-          onClick={() => handleUserTypeChange("farmer")} // Call handleUserTypeChange
+          className={`flex-1 py-3 rounded-lg justify-center items-center ${
+            userType === "farmer"
+              ? "border-2 border-green-500 bg-white text-green-600"
+              : "border border-gray-200 bg-white text-gray-600"
+          }`}
+          onClick={() => handleUserTypeChange("farmer")}
         >
           <div className="flex items-center justify-center gap-2">
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
               <path
                 d="M12 9V2L10 4"
                 stroke="currentColor"
@@ -228,14 +332,50 @@ const Signup = () => {
               </div>
               <div>
                 <label className="block text-sm mb-1">Farm Location</label>
-                <input
-                  type="text"
-                  name="farmLocation"
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
-                  value={formData.farmLocation}
-                  onChange={handleInputChange}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    id="location-search"
+                    type="text"
+                    placeholder="Search or click to set location"
+                    className="w-full px-3 py-2 pl-10 rounded-lg border border-gray-300"
+                    value={formData.farmLocation.placeName} // Display place name
+                    onChange={(e) => e.target.value} // Keep input active for search
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleMap}
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-green-600"
+                  >
+                    <MapPin size={20} />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Coordinates: {formData.farmLocation.coordinates.join(", ")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Map Popup */}
+        {showMap && userType === "farmer" && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white p-4 rounded-lg w-full max-w-2xl">
+              <h3 className="text-lg font-semibold mb-2">Set Farm Location</h3>
+              <div id="map" className="w-full h-96 rounded-lg border"></div>
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  onClick={toggleMap}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Save Location
+                </button>
+                <button
+                  onClick={toggleMap}
+                  className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
