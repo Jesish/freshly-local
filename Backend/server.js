@@ -5,7 +5,7 @@ require("dotenv").config();
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-
+const axios = require("axios");
 const userRoutes = require("./src/routes/userRoutes");
 const productRoutes = require("./src/routes/productRoutes");
 const cartRoutes = require("./src/routes/cartRoutes");
@@ -39,6 +39,54 @@ app.use("/api/reviews", ReviewRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api", messageRoutes);
 
+// Directions Proxy Endpoint
+app.get("/api/directions", async (req, res) => {
+  const { start, end } = req.query;
+  const apiKey = process.env.ORS_API_KEY;
+
+  console.log("GET /api/directions hit with:", { start, end });
+
+  if (!apiKey) {
+    return res.status(500).json({ error: "ORS API key is not configured" });
+  }
+  if (!start || !end) {
+    return res
+      .status(400)
+      .json({ error: "Start and end coordinates required" });
+  }
+
+  try {
+    const response = await axios.post(
+      "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+      {
+        coordinates: [
+          start.split(",").map(Number), // [lng, lat]
+          end.split(",").map(Number), // [lng, lat]
+        ],
+        format: "geojson",
+      },
+      {
+        headers: {
+          Authorization: apiKey, // ORS uses Authorization header for API key
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      }
+    );
+    console.log("ORS Response:", response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error("ORS Directions Error:", {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+    res
+      .status(500)
+      .json({ error: error.response?.data?.error || "ORS failed" });
+  }
+});
 // Pass io to app for controllers to use
 app.set("io", io);
 

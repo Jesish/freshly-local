@@ -24,8 +24,16 @@ const UserSchema = new mongoose.Schema({
     default: "",
   },
   farmLocation: {
-    type: String,
-    default: "",
+    type: {
+      type: String,
+      enum: ["Point"], // Restrict to "Point" type
+      default: "Point",
+    },
+    coordinates: {
+      type: [Number], // Array of [lng, lat]
+      required: true,
+    },
+    placeName: { type: String }, // Optional human-readable name
   },
   farmImage: {
     type: String,

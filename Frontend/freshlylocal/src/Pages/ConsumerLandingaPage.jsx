@@ -90,7 +90,7 @@ const LandingPage = () => {
                   </h3>{" "}
                   {/* Use farmName */}
                   <p className="text-gray-600 text-sm mb-4">
-                    {farm.farmLocation}
+                    {farm.farmLocation?.placeName || "Location not specified"}{" "}
                   </p>{" "}
                   {/* Display farm location or description */}
                   <Link to={`/farmdescription/${farm._id}`}>

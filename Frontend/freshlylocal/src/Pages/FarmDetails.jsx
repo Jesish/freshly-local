@@ -15,12 +15,15 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useChat } from "./ChatContext";
 import axios from "axios";
 import farmer from "../assets/farm.png";
 import Navbar from "./Navbar";
-import ChatPopup from "./ChatPopup"; // Import ChatPopup directly
+import ChatPopup from "./ChatPopup";
+import DirectionsMap from "./DirectionsMap";
+import L from "leaflet"; // Import Leaflet
+import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
 
 const FarmProfilePage = () => {
   const navigate = useNavigate();
@@ -36,7 +39,56 @@ const FarmProfilePage = () => {
   const [consumerName, setConsumerName] = useState("");
   const [consumerId, setConsumerId] = useState("");
   const [isChatOpen, setIsChatOpen] = useState(false); // Reintroduce isChatOpen
+  const [showDirections, setShowDirections] = useState(false);
+  // const [mapLoaded, setMapLoaded] = useState(false);
   const { openChat } = useChat();
+  const mapRef = useRef(null);
+  const mapContainerRef = useRef(null); // Ref for the map container DOM element
+
+  // Initialize Leaflet map
+  useEffect(() => {
+    if (
+      farm?.farmLocation?.coordinates &&
+      !mapRef.current &&
+      mapContainerRef.current &&
+      !showDirections // Only initialize if DirectionsMap isn’t open
+    ) {
+      const [lng, lat] = farm.farmLocation.coordinates;
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+        scrollWheelZoom: false,
+      }).setView([lat, lng], 13);
+      mapRef.current = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      }).addTo(map);
+
+      L.marker([lat, lng]).addTo(map).bindPopup(farm.farmName).openPopup();
+
+      map.on("click", () => setShowDirections(true));
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
+      return () => {
+        if (mapRef.current) {
+          mapRef.current.remove();
+          mapRef.current = null;
+        }
+      };
+    }
+  }, [farm, showDirections]);
+
+  useEffect(() => {
+    if (showDirections && mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+    }
+  }, [showDirections]);
+
   useEffect(() => {
     const fetchFarmDetails = async () => {
       try {
@@ -55,6 +107,10 @@ const FarmProfilePage = () => {
     };
     fetchFarmDetails();
   }, [id]);
+
+  // const handleShowDirections = () => {
+  //   setShowDirections(true);
+  // };
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -190,7 +246,9 @@ const FarmProfilePage = () => {
             </h1>
             <div className="flex items-center gap-1 text-gray-600 mb-6">
               <MapPin size={18} className="text-gray-500" />
-              <span>{farm.farmLocation}</span>
+              <span className="cursor-pointer hover:underline">
+                {farm.farmLocation.placeName}
+              </span>
             </div>
             <button
               className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors"
@@ -228,7 +286,7 @@ const FarmProfilePage = () => {
           <button
             onClick={() =>
               openChat({
-                id: User._id,//changed for the error 403 error one.....
+                id: User._id, //changed for the error 403 error one.....
                 name: farm.farmName,
                 recipientId: id,
               })
@@ -256,11 +314,16 @@ const FarmProfilePage = () => {
                 </div>
               </div>
               <div className="bg-gray-200 rounded-lg overflow-hidden h-48 md:h-auto">
-                <img
-                  src="/api/placeholder/600/300"
-                  alt="Farm location map"
-                  className="w-full h-full object-cover"
-                />
+              {farm.farmLocation?.coordinates && !showDirections ? ( // Hide map when DirectionsMap is open
+                  <div
+                    ref={mapContainerRef}
+                    className="w-full h-64 md:h-96 cursor-pointer"
+                  />
+                ) : (
+                  <p className="text-center text-gray-500 flex items-center justify-center h-64 md:h-96">
+                    {showDirections ? "Viewing directions" : "Location unavailable"}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -538,6 +601,12 @@ const FarmProfilePage = () => {
         <ChatPopup
           user={{ id: id, name: farm.farmName, recipientId: id }}
           onClose={() => setIsChatOpen(false)}
+        />
+      )}
+      {showDirections && (
+        <DirectionsMap
+          destination={farm.farmLocation}
+          onClose={() => setShowDirections(false)}
         />
       )}
 

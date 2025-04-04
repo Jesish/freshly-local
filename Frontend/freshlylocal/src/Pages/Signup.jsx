@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import API from "../utils/axiosInstance";
 import { MapPin } from "lucide-react";
+import L from "leaflet"; // Import Leaflet
+import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
 
 const Signup = () => {
   const [userType, setUserType] = useState("consumer");
@@ -10,28 +12,17 @@ const Signup = () => {
     phoneNumber: "",
     password: "",
     farmName: "",
-    farmLocation: { type: "Point", coordinates: [0, 0], placeName: "" }, // Added placeName
+    farmLocation: { type: "Point", coordinates: [0, 0], placeName: "" },
     userType: userType,
     termsAccepted: false,
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const [showMap, setShowMap] = useState(false);
-
-  // Load Google Maps script
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDSaH5APCpRVR7bKzv_q4wVyQy7KQ8F-Jw&libraries=places`;
-    script.async = true;
-    script.onload = () => setMapLoaded(true);
-    document.body.appendChild(script);
-    return () => document.body.removeChild(script);
-  }, []);
 
   // Initialize map with current location when shown
   useEffect(() => {
-    if (mapLoaded && showMap && userType === "farmer") {
+    if (showMap && userType === "farmer") {
       let initialLat = 0;
       let initialLng = 0;
 
@@ -48,88 +39,87 @@ const Signup = () => {
           }
         );
       } else {
-        initializeMap(initialLat, initialLng); // Fallback if geolocation not supported
+        initializeMap(initialLat, initialLng); // Fallback to (0, 0)
       }
     }
-  }, [mapLoaded, showMap, userType]);
+  }, [showMap, userType]);
 
-  const getPlaceNameFromCoords = (lat, lng) => {
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results[0]) {
-        const placeName = results[0].formatted_address;
-        setFormData((prev) => ({
-          ...prev,
-          farmLocation: {
-            ...prev.farmLocation,
-            placeName: placeName,
-          },
-        }));
-        console.log("Place Name:", placeName); // Print place name
-      } else {
-        console.error("Geocoding failed:", status);
-        setFormData((prev) => ({
-          ...prev,
-          farmLocation: {
-            ...prev.farmLocation,
-            placeName: "Unknown location",
-          },
-        }));
-      }
-    });
+  const getPlaceNameFromCoords = async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`
+      );
+      const data = await response.json();
+      const placeName = data.display_name || "Location not found";
+      setFormData((prev) => ({
+        ...prev,
+        farmLocation: { ...prev.farmLocation, placeName },
+      }));
+      console.log("Place Name (Nominatim):", placeName);
+    } catch (err) {
+      console.error("Nominatim geocoding failed:", err);
+      setFormData((prev) => ({
+        ...prev,
+        farmLocation: {
+          ...prev.farmLocation,
+          placeName: "Failed to fetch location",
+        },
+      }));
+    }
   };
 
   const initializeMap = (lat, lng) => {
-    const map = new window.google.maps.Map(document.getElementById("map"), {
-      center: { lat, lng },
-      zoom: lat === 0 && lng === 0 ? 2 : 15,
-    });
-    const marker = new window.google.maps.Marker({
-      position: { lat, lng },
-      map: map,
-      draggable: true,
-    });
+    const map = L.map("map").setView([lat, lng], lat === 0 && lng === 0 ? 2 : 15);
 
-    // Initial geocoding for current location
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+
     getPlaceNameFromCoords(lat, lng);
 
-    // Update coordinates and place name when marker is dragged
-    window.google.maps.event.addListener(marker, "dragend", () => {
-      const position = marker.getPosition();
-      const newLat = position.lat();
-      const newLng = position.lng();
-      const newCoords = [newLng, newLat];
+    marker.on("dragend", () => {
+      const position = marker.getLatLng();
+      const newCoords = [position.lng, position.lat]; // [lng, lat]
       setFormData((prev) => ({
         ...prev,
         farmLocation: { ...prev.farmLocation, coordinates: newCoords },
       }));
       console.log("Selected Coordinates:", newCoords);
-      getPlaceNameFromCoords(newLat, newLng); // Fetch place name
+      getPlaceNameFromCoords(position.lat, position.lng);
     });
 
-    // Places API for search
-    const input = document.getElementById("location-search");
-    const autocomplete = new window.google.maps.places.Autocomplete(input);
-    autocomplete.bindTo("bounds", map);
-    autocomplete.addListener("place_changed", () => {
-      const place = autocomplete.getPlace();
-      if (place.geometry) {
-        const newLat = place.geometry.location.lat();
-        const newLng = place.geometry.location.lng();
-        marker.setPosition({ lat: newLat, lng: newLng });
-        map.setCenter({ lat: newLat, lng: newLng });
-        map.setZoom(15);
-        const newCoords = [newLng, newLat];
-        setFormData((prev) => ({
-          ...prev,
-          farmLocation: {
-            ...prev.farmLocation,
-            coordinates: newCoords,
-            placeName: place.formatted_address || "Unknown location",
-          },
-        }));
-        console.log("Selected Coordinates:", newCoords);
-        console.log("Place Name:", place.formatted_address);
+    // Optional: Add search functionality with Nominatim
+    const searchInput = document.getElementById("location-search");
+    searchInput.addEventListener("keypress", async (e) => {
+      if (e.key === "Enter") {
+        const query = searchInput.value;
+        try {
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`
+          );
+          const data = await response.json();
+          if (data.length > 0) {
+            const newLat = parseFloat(data[0].lat);
+            const newLng = parseFloat(data[0].lon);
+            map.setView([newLat, newLng], 15);
+            marker.setLatLng([newLat, newLng]);
+            const newCoords = [newLng, newLat];
+            setFormData((prev) => ({
+              ...prev,
+              farmLocation: {
+                ...prev.farmLocation,
+                coordinates: newCoords,
+                placeName: data[0].display_name || "Location not found",
+              },
+            }));
+            console.log("Selected Coordinates:", newCoords);
+            console.log("Place Name (Nominatim Search):", data[0].display_name);
+          }
+        } catch (err) {
+          console.error("Nominatim search failed:", err);
+        }
       }
     });
   };
@@ -176,7 +166,6 @@ const Signup = () => {
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-normal mb-6">Create your account</h1>
 
-      {/* User Type Selection */}
       <div className="flex gap-4 mb-8">
         <button
           className={`flex-1 py-3 rounded-lg justify-center items-center ${
@@ -338,8 +327,13 @@ const Signup = () => {
                     type="text"
                     placeholder="Search or click to set location"
                     className="w-full px-3 py-2 pl-10 rounded-lg border border-gray-300"
-                    value={formData.farmLocation.placeName} // Display place name
-                    onChange={(e) => e.target.value} // Keep input active for search
+                    value={formData.farmLocation.placeName}
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        farmLocation: { ...prev.farmLocation, placeName: e.target.value },
+                      }));
+                    }}
                   />
                   <button
                     type="button"
@@ -417,3 +411,6 @@ const Signup = () => {
 };
 
 export default Signup;
+
+
+ 
