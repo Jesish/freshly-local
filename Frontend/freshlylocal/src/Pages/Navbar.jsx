@@ -91,7 +91,7 @@ const Navbar = ({ onCartUpdate }) => {
               <span>Home</span>
             </button>
             <button
-              onClick={() => navigate("/consumerprofile")}
+              onClick={() => navigate("/profile")}
               className="flex items-center gap-2 hover:text-green-700 transition-colors"
             >
               <User size={20} />

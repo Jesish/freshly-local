@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Search, ShoppingCart, Home, User } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import farmer from "../assets/farmer.png";
+import { useNavigate, Link } from "react-router-dom";
+import farmer from "../assets/farmer.png"; // Fallback image
 import axios from "axios";
-import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
+
 const LandingPage = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem("token"); // Check if token exists
@@ -17,15 +17,23 @@ const LandingPage = () => {
           "http://localhost:5000/api/users/farms",
           {
             headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`, // Pass token if needed
+              Authorization: `Bearer ${token}`, // Pass token if needed
             },
           }
         );
-
         setFarms(response.data);
-        console.log(response.data);
+        console.log("Fetched Farms:", response.data);
       } catch (error) {
         console.error("Error fetching farms:", error);
+        // Optional: Set dummy data for testing if API fails
+        setFarms([
+          // {
+          //   _id: "1",
+          //   farmName: "Sample Farm",
+          //   farmLocation: { placeName: "Sample Location" },
+          //   farmImage: "", // No image to test fallback
+          // },
+        ]);
       }
     };
 
@@ -75,24 +83,26 @@ const LandingPage = () => {
           <div className="grid grid-cols-3 gap-6">
             {farms.map((farm) => (
               <div
-                key={farm._id} // Use _id instead of id (it's more consistent with MongoDB)
+                key={farm._id}
                 className="bg-white rounded-lg overflow-hidden shadow-sm"
               >
                 <img
-                  // Ensure farmImage is used for the farm image (if the field is empty, use a placeholder)
-                  src={farm.farmImage || farmer}
-                  alt={farm.farmName}
+                  src={
+                    farm.farmImage
+                      ? `http://localhost:5000${farm.farmImage}` // Use farmImage from backend
+                      : farmer // Fallback to static image
+                  }
+                  alt={farm.farmName || "Farm Image"}
                   className="w-full h-48 object-cover"
+                  onError={(e) => (e.target.src = farmer)} // Fallback on error
                 />
                 <div className="p-4">
                   <h3 className="font-semibold text-lg mb-2">
-                    {farm.farmName}
-                  </h3>{" "}
-                  {/* Use farmName */}
+                    {farm.farmName || "Unnamed Farm"}
+                  </h3>
                   <p className="text-gray-600 text-sm mb-4">
-                    {farm.farmLocation?.placeName || "Location not specified"}{" "}
-                  </p>{" "}
-                  {/* Display farm location or description */}
+                    {farm.farmLocation?.placeName || "Location not specified"}
+                  </p>
                   <Link to={`/farmdescription/${farm._id}`}>
                     <button
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
@@ -124,17 +134,14 @@ const LandingPage = () => {
           </div>
           <div className="flex items-center gap-2">
             <button className="p-2 text-gray-600 hover:text-gray-900">
-              {/* Facebook icon placeholder */}
               <div className="w-5 h-5 bg-gray-600 rounded-full" />
             </button>
             <button className="p-2 text-gray-600 hover:text-gray-900">
-              {/* Instagram icon placeholder */}
               <div className="w-5 h-5 bg-gray-600 rounded-full" />
             </button>
           </div>
         </div>
       </footer>
-      {/* <CartModal isOpen={isCartOpen} setIsOpen={setIsCartOpen} /> */}
     </div>
   );
 };

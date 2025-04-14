@@ -36,6 +36,10 @@ const UserSchema = new mongoose.Schema({
     placeName: { type: String }, // Optional human-readable name
   },
   farmImage: {
+    type: [String], // Changed to array
+    default: [], // Default to empty array
+  },
+  profileImage: {
     type: String,
     default: "",
   },

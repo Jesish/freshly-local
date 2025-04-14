@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useParams } from "react-router-dom";
-
 import {
   Package,
   Clock,
@@ -60,8 +58,6 @@ const OrderHistory = () => {
     switch (status.toLowerCase()) {
       case "pending":
         return <Clock size={20} className="text-yellow-500" />;
-      case "completed":
-        return <Package size={20} className="text-blue-500" />;
       case "on the way":
         return <Truck size={20} className="text-orange-500" />;
       case "delivered":
@@ -75,13 +71,10 @@ const OrderHistory = () => {
 
   const handleViewDetails = (order) => {
     setSelectedOrder(order);
-    console.log(order);
-    
     if (order.items.length > 0) {
-      fetchFarmerDetails(order.items[0].farm_id); // Get farm_id from the first item
+      fetchFarmerDetails(order.items[0].farm_id);
     }
   };
-  
 
   const closeModal = () => {
     setSelectedOrder(null);
@@ -150,6 +143,12 @@ const OrderHistory = () => {
                       <span className="font-medium">Total:</span> NPR{" "}
                       {order.totalAmount.toFixed(2)}
                     </p>
+                    <p>
+                      <span className="font-medium">Delivery:</span>{" "}
+                      {order.deliveryDate
+                        ? new Date(order.deliveryDate).toLocaleDateString()
+                        : "TBD"}
+                    </p>
                   </div>
                   <button
                     onClick={() => handleViewDetails(order)}
@@ -188,6 +187,14 @@ const OrderHistory = () => {
                   <p className="text-gray-600">
                     <span className="font-medium">Status:</span>{" "}
                     <span className="capitalize">{selectedOrder.status}</span>
+                  </p>
+                  <p className="text-gray-600">
+                    <span className="font-medium">Delivery Date:</span>{" "}
+                    {selectedOrder.deliveryDate
+                      ? new Date(
+                          selectedOrder.deliveryDate
+                        ).toLocaleDateString()
+                      : "TBD"}
                   </p>
                   <p className="text-gray-600">
                     <span className="font-medium">Total:</span> NPR{" "}

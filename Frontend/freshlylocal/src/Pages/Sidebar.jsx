@@ -41,7 +41,7 @@ const Sidebar = () => {
     {
       icon: <User className="w-5 h-5" />,
       label: "Profile",
-      path: "/profile",
+      path: "/consumerprofile",
     },
   ];
 

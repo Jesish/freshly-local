@@ -2,50 +2,102 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const Product = require("../models/Product");
 const Transaction = require("../models/Transaction");
+const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
+
+const uploadDir = path.join(__dirname, "..", "..", "uploads");
+
+// Ensure the folder exists
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+
+const upload = multer({ storage });
 
 // Sign up user
 const signup = async (req, res) => {
-  const {
-    fullName,
-    email,
-    phoneNumber,
-    password,
-    farmName,
-    farmLocation,
-    userType,
-  } = req.body;
+  upload.fields([{ name: "profileImage" }, { name: "farmImage" }])(
+    req,
+    res,
+    async (err) => {
+      if (err) {
+        console.error("Multer error:", err);
+        return res.status(500).json({ msg: "File upload error" });
+      }
 
-  try {
-    let user = await User.findOne({ email });
-    if (user) {
-      return res.status(400).json({ msg: "User already exists" });
+      console.log("req.body:", req.body);
+      console.log("req.files:", req.files);
+
+      const {
+        fullName,
+        email,
+        phoneNumber,
+        password,
+        farmName,
+        farmLocation,
+        userType,
+      } = req.body;
+
+      try {
+        let user = await User.findOne({ email });
+        if (user) {
+          return res.status(400).json({ msg: "User already exists" });
+        }
+
+        if (userType === "farmer" && (!req.files || !req.files["farmImage"])) {
+          return res
+            .status(400)
+            .json({ msg: "Farm image is required for farmers" });
+        }
+
+        const userData = {
+          fullName,
+          email,
+          phoneNumber,
+          password, // Hashed by pre-save middleware
+          userType,
+          farmLocation: JSON.parse(farmLocation),
+        };
+
+        if (farmName) userData.farmName = farmName;
+        if (req.files && req.files["profileImage"]) {
+          userData.profileImage = `/uploads/${req.files["profileImage"][0].filename}`;
+          console.log("Setting profileImage:", userData.profileImage); // Debug
+        }
+        if (req.files && req.files["farmImage"]) {
+          userData.farmImage = `/uploads/${req.files["farmImage"][0].filename}`;
+          console.log("Setting farmImage:", userData.farmImage); // Debug
+        }
+
+        user = new User(userData);
+        await user.save();
+
+        console.log("Saved user:", user);
+
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+          expiresIn: "1h",
+        });
+
+        res.status(201).json({
+          msg: "User created successfully",
+          token,
+        });
+      } catch (error) {
+        console.error("Signup error:", error);
+        res.status(500).json({ msg: "Server error" });
+      }
     }
-
-    user = new User({
-      fullName,
-      email,
-      phoneNumber,
-      password,
-      farmName,
-      farmLocation,
-      userType,
-    });
-
-    await user.save();
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
-    //can use it in env file for more secure.
-
-    res.status(201).json({
-      msg: "User created successfully",
-      token,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
+  );
 };
 
 // Login user
@@ -85,11 +137,85 @@ const getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
-    res.json(user);
+    res.json(user); // Return full user object
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching profile:", error);
     res.status(500).json({ msg: "Server error" });
   }
+};
+
+const updateProfile = async (req, res) => {
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "farmImages", maxCount: 10 },
+  ])(req, res, async (err) => {
+    if (err) {
+      console.error("Multer error:", err);
+      return res.status(500).json({ msg: "File upload error" });
+    }
+
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files);
+
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      farmName,
+      farmDescription,
+      farmLocation,
+    } = req.body;
+
+    try {
+      const user = await User.findById(req.user._id);
+      if (!user) {
+        return res.status(404).json({ msg: "User not found" });
+      }
+
+      // Update personal details
+      if (fullName) user.fullName = fullName;
+      if (email) user.email = email;
+      if (phoneNumber) user.phoneNumber = phoneNumber;
+
+      // Update farmer-specific details
+      if (user.userType === "farmer") {
+        if (farmName) user.farmName = farmName;
+        if (farmDescription) user.farmdescription = farmDescription; // Matches schema
+        if (farmLocation) {
+          const parsedLocation = JSON.parse(farmLocation);
+          user.farmLocation = {
+            type: "Point",
+            coordinates:
+              parsedLocation.coordinates || user.farmLocation.coordinates,
+            placeName: parsedLocation.placeName || user.farmLocation.placeName,
+          };
+        }
+      }
+
+      // Handle profile image
+      if (req.files && req.files["profileImage"]) {
+        user.profileImage = `/uploads/${req.files["profileImage"][0].filename}`;
+      }
+
+      // Handle farm images
+      if (req.files && req.files["farmImages"]) {
+        const newFarmImages = req.files["farmImages"].map(
+          (file) => `/uploads/${file.filename}`
+        );
+        user.farmImage = user.farmImage
+          ? [...user.farmImage, ...newFarmImages]
+          : newFarmImages;
+      }
+
+      await user.save();
+
+      console.log("Updated user:", user);
+      res.json({ msg: "Profile updated successfully", user });
+    } catch (error) {
+      console.error("Update profile error:", error);
+      res.status(500).json({ msg: "Server error" });
+    }
+  });
 };
 
 //to get all farmers
@@ -138,7 +264,7 @@ const getFarmById = async (req, res) => {
       farmImage: farm.farmImage,
       farmdescription: farm.farmdescription,
       farmerName: farm.fullName,
-      farmerEmail: farm.email,  
+      farmerEmail: farm.email,
       farmerPhone: farm.phoneNumber,
     });
   } catch (error) {
@@ -243,6 +369,7 @@ module.exports = {
   getMe,
   getFarmerStats,
   getFarmerProfile,
+  updateProfile,
 };
 
 //farmer id each ..params totake form url

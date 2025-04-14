@@ -4,7 +4,6 @@ const submitReview = async (req, res) => {
   try {
     const { farmId, rating, review } = req.body;
     const consumerId = req.user.id;
-    const name = req.user.fullName;
 
     if (!farmId || !rating || !review) {
       return res.status(400).json({ message: "All fields are required" });
@@ -24,9 +23,14 @@ const submitReview = async (req, res) => {
     });
 
     await newReview.save();
+    // Populate consumerId for response
+    const populatedReview = await Review.findById(newReview._id).populate(
+      "consumerId",
+      "fullName profileImage"
+    );
     res.status(201).json({
       message: "Review submitted successfully",
-      review: { ...newReview._doc, name },
+      review: populatedReview,
     });
   } catch (error) {
     console.error("Error submitting review:", error);
@@ -39,7 +43,7 @@ const getFarmReviews = async (req, res) => {
     const { farmId } = req.params;
     const reviews = await Review.find({ farmId }).populate(
       "consumerId",
-      "fullName"
+      "fullName profileImage"
     );
     if (!reviews || reviews.length === 0) {
       return res
@@ -86,10 +90,10 @@ const editReview = async (req, res) => {
     existingReview.review = review;
     await existingReview.save();
 
-    // Populate consumerId before sending response
+    // Populate consumerId for response
     const populatedReview = await Review.findById(id).populate(
       "consumerId",
-      "fullName"
+      "fullName profileImage"
     );
     res.status(200).json({
       message: "Review updated successfully",

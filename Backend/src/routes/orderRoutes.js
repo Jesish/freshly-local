@@ -4,9 +4,11 @@ const router = express.Router();
 const {
   getOrders,
   getFarmerOrders,
+  updateOrder,
 } = require("../controllers/orderController");
 const protect = require("../middleware/authMiddleware");
 
 router.get("/", protect, getOrders);
 router.get("/orders", protect, getFarmerOrders);
+router.put("/:transactionUuid", protect, updateOrder);
 module.exports = router;

@@ -28,7 +28,11 @@ const transactionSchema = new mongoose.Schema({
   ],
   totalAmount: { type: Number, required: true },
   transactionUuid: { type: String, required: true },
-  status: { type: String, default: "pending" },
+  status: {
+    type: String,
+    enum: ["Pending", "On the way", "Delivered", "Unpaid"],
+    default: "Pending",
+  },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   deliveryDate: { type: Date },

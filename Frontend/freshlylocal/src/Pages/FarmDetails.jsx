@@ -1,49 +1,75 @@
 // C:\Users\CHME\Desktop\freshly-local\frontend\src\Pages\FarmDetails.jsx
 import {
   MapPin,
-  Home,
-  User,
-  ShoppingCart,
   Phone,
   Mail,
   Star,
+  MessageSquare,
+  ShoppingCart,
+  Leaf,
   Home as HomeIcon,
   Truck,
-  Leaf,
   Edit2,
   Trash2,
-  MessageSquare,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { useChat } from "./ChatContext";
 import axios from "axios";
-import farmer from "../assets/farm.png";
 import Navbar from "./Navbar";
 import ChatPopup from "./ChatPopup";
 import DirectionsMap from "./DirectionsMap";
-import L from "leaflet"; // Import Leaflet
-import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+const DeleteConfirmModal = ({ isOpen, onClose, onConfirm }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white/80 backdrop-blur-md p-6 rounded-lg shadow-lg max-w-sm w-full">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">
+          Are you sure you want to delete this review?
+        </h3>
+        <div className="flex gap-4 justify-center">
+          <button
+            onClick={onConfirm}
+            className="bg-teal-400 hover:bg-teal-500 text-white py-2 px-4 rounded-md text-sm transition-all duration-200"
+          >
+            Confirm
+          </button>
+          <button
+            onClick={onClose}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md text-sm transition-all duration-200"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const FarmProfilePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [farm, setFarm] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [reviewForm, setReviewForm] = useState({
-    rating: 0,
-    review: "",
-  });
+  const [reviewForm, setReviewForm] = useState({ rating: 0, review: "" });
   const [editReviewId, setEditReviewId] = useState(null);
   const [editForm, setEditForm] = useState({ rating: 0, review: "" });
-  const [consumerName, setConsumerName] = useState("");
-  const [consumerId, setConsumerId] = useState("");
-  const [isChatOpen, setIsChatOpen] = useState(false); // Reintroduce isChatOpen
+  const [consumer, setConsumer] = useState({
+    fullName: "",
+    _id: "",
+    profileImage: "",
+  });
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showDirections, setShowDirections] = useState(false);
-  // const [mapLoaded, setMapLoaded] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [reviewToDelete, setReviewToDelete] = useState(null);
   const { openChat } = useChat();
   const mapRef = useRef(null);
-  const mapContainerRef = useRef(null); // Ref for the map container DOM element
+  const mapContainerRef = useRef(null);
 
   // Initialize Leaflet map
   useEffect(() => {
@@ -51,7 +77,7 @@ const FarmProfilePage = () => {
       farm?.farmLocation?.coordinates &&
       !mapRef.current &&
       mapContainerRef.current &&
-      !showDirections // Only initialize if DirectionsMap isn’t open
+      !showDirections
     ) {
       const [lng, lat] = farm.farmLocation.coordinates;
       const map = L.map(mapContainerRef.current, {
@@ -69,9 +95,7 @@ const FarmProfilePage = () => {
 
       map.on("click", () => setShowDirections(true));
 
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
+      setTimeout(() => map.invalidateSize(), 100);
 
       return () => {
         if (mapRef.current) {
@@ -89,6 +113,7 @@ const FarmProfilePage = () => {
     }
   }, [showDirections]);
 
+  // Fetch farm details
   useEffect(() => {
     const fetchFarmDetails = async () => {
       try {
@@ -108,10 +133,7 @@ const FarmProfilePage = () => {
     fetchFarmDetails();
   }, [id]);
 
-  // const handleShowDirections = () => {
-  //   setShowDirections(true);
-  // };
-
+  // Fetch reviews
   useEffect(() => {
     const fetchReviews = async () => {
       try {
@@ -127,18 +149,21 @@ const FarmProfilePage = () => {
     fetchReviews();
   }, [id]);
 
+  // Fetch consumer details
   useEffect(() => {
     const fetchConsumerDetails = async () => {
       try {
         const response = await axios.get("http://localhost:5000/api/users/me", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        setConsumerName(response.data.fullName);
-        setConsumerId(response.data._id);
+        setConsumer({
+          fullName: response.data.fullName,
+          _id: response.data._id,
+          profileImage: response.data.profileImage || "",
+        });
       } catch (error) {
         console.error("Error fetching consumer details:", error);
-        setConsumerName("Anonymous");
-        setConsumerId("");
+        setConsumer({ fullName: "Anonymous", _id: "", profileImage: "" });
       }
     };
     fetchConsumerDetails();
@@ -167,11 +192,7 @@ const FarmProfilePage = () => {
     try {
       const response = await axios.post(
         "http://localhost:5000/api/reviews",
-        {
-          farmId: id,
-          rating: reviewForm.rating,
-          review: reviewForm.review,
-        },
+        { farmId: id, rating: reviewForm.rating, review: reviewForm.review },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
@@ -188,140 +209,169 @@ const FarmProfilePage = () => {
     setEditForm({ rating: review.rating, review: review.review });
   };
 
-  const handleUpdateReview = async (e) => {
-    e.preventDefault();
+  const handleDeleteReview = async (reviewId) => {
     try {
-      const response = await axios.put(
-        `http://localhost:5000/api/reviews/${editReviewId}`,
-        {
-          rating: editForm.rating,
-          review: editForm.review,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        }
-      );
-      setReviews(
-        reviews.map((r) => (r._id === editReviewId ? response.data.review : r))
-      );
-      setEditReviewId(null);
-      setEditForm({ rating: 0, review: "" });
+      await axios.delete(`http://localhost:5000/api/reviews/${reviewId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setReviews(reviews.filter((r) => r._id !== reviewId));
+      setShowDeleteModal(false);
+      setReviewToDelete(null);
     } catch (error) {
-      console.error("Error updating review:", error);
+      console.error("Error deleting review:", error);
     }
   };
 
-  const handleDeleteReview = async (reviewId) => {
-    if (window.confirm("Are you sure you want to delete this review?")) {
-      try {
-        await axios.delete(`http://localhost:5000/api/reviews/${reviewId}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setReviews(reviews.filter((r) => r._id !== reviewId));
-      } catch (error) {
-        console.error("Error deleting review:", error);
-      }
+  const openDeleteModal = (reviewId) => {
+    setReviewToDelete(reviewId);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setReviewToDelete(null);
+  };
+
+  const confirmDelete = () => {
+    if (reviewToDelete) {
+      handleDeleteReview(reviewToDelete);
     }
+  };
+
+  const truncateReview = (text, maxLength = 50) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + "...";
   };
 
   if (!farm) {
-    return <p>Loading...</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-lg text-gray-600">Loading...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-white">
+    <div className="min-h-screen flex flex-col bg-gray-50 font-sans">
       <Navbar />
       <main className="flex-1">
-        <section className="px-6 py-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="rounded-lg overflow-hidden shadow-md">
-            <img
-              src={farm.farmImage || farmer}
-              alt="image"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex flex-col justify-center">
-            <h1 className="text-3xl font-bold text-green-800 mb-2">
-              {farm.farmName}
-            </h1>
-            <div className="flex items-center gap-1 text-gray-600 mb-6">
-              <MapPin size={18} className="text-gray-500" />
-              <span className="cursor-pointer hover:underline">
-                {farm.farmLocation.placeName}
-              </span>
+        {/* Hero Section */}
+        <section className="px-6 pt-12 pb-16 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+              <div className="lg:col-span-3">
+                {farm.farmImage && farm.farmImage.length > 0 ? (
+                  <div className="relative rounded-xl overflow-hidden shadow-md">
+                    <div className="flex space-x-4 snap-x snap-mandatory overflow-x-auto scrollbar-hide">
+                      {farm.farmImage.map((img, index) => (
+                        <img
+                          key={index}
+                          src={`http://localhost:5000${img}`}
+                          alt={`Farm Image ${index + 1}`}
+                          className="w-full h-96 object-cover snap-center rounded-xl"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-200 rounded-xl h-96 flex items-center justify-center text-gray-500">
+                    No farm images available
+                  </div>
+                )}
+              </div>
+              <div className="lg:col-span-2 flex flex-col justify-center items-center lg:items-center">
+                <div className="flex flex-col items-center mb-6">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 mr-72">
+                    {farm.farmName}
+                  </h1>
+                  <div className="flex items-center gap-3">
+                    <MapPin size={24} className="text-green-600" />
+                    <span className="text-lg text-gray-600">
+                      {farm.farmLocation.placeName}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 shadow-md"
+                  onClick={() => navigate(`/ProductPage/${id}`)}
+                >
+                  <ShoppingCart size={20} />
+                  Shop Now
+                </button>
+                <button
+                  onClick={() =>
+                    openChat({
+                      id: farm._id,
+                      name: farm.farmName,
+                      recipientId: id,
+                    })
+                  }
+                  className="w-full mt-4 bg-white hover:bg-gray-100 text-gray-800 py-3 px-6 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-all duration-300 shadow-md"
+                >
+                  <MessageSquare size={20} />
+                  Message Farmer
+                </button>
+              </div>
             </div>
-            <button
-              className="bg-green-700 hover:bg-green-800 text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors"
-              onClick={() => navigate(`/ProductPage/${id}`)}
-            >
-              <ShoppingCart size={18} />
-              <span>Shop Now</span>
-            </button>
           </div>
         </section>
 
-        <section className="bg-green-50 py-12 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-semibold text-green-800 mb-6 text-center">
+        {/* About Section */}
+        <section className="py-16 px-6 bg-gray-50">
+          <div className="max-w-7xl mx-auto text-center">
+            <h2 className="text-3xl font-semibold text-gray-800 mb-6">
               About the Farm
             </h2>
-            <p className="text-gray-700 max-w-3xl mx-auto mb-10 text-center">
-              {farm.farmdescription}
+            <p className="text-gray-600 max-w-3xl mx-auto mb-10 leading-relaxed text-lg">
+              {farm.farmdescription ||
+                "Fresh, organic produce grown with care."}
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-8">
               <div className="flex items-center gap-3">
-                <Leaf className="text-green-700" />
-                <span className="text-gray-700">100% Organic Produce</span>
+                <Leaf className="text-green-600" size={24} />
+                <span className="text-gray-700 text-lg">100% Organic</span>
               </div>
               <div className="flex items-center gap-3">
-                <HomeIcon className="text-green-700" />
-                <span className="text-gray-700">Family-Owned Since 1990</span>
+                <HomeIcon className="text-green-600" size={24} />
+                <span className="text-gray-700 text-lg">Family-Owned</span>
               </div>
               <div className="flex items-center gap-3">
-                <Truck className="text-green-700" />
-                <span className="text-gray-700">Local Delivery Available</span>
+                <Truck className="text-green-600" size={24} />
+                <span className="text-gray-700 text-lg">Local Delivery</span>
               </div>
             </div>
           </div>
-          <button
-            onClick={() =>
-              openChat({
-                id: User._id, //changed for the error 403 error one.....
-                name: farm.farmName,
-                recipientId: id,
-              })
-            }
-            className="mt-6 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
-          >
-            <MessageSquare size={20} /> Message Farmer
-          </button>
         </section>
 
-        <section className="py-12 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-semibold text-green-800 mb-6">
-              Contact Information
+        {/* Contact & Location */}
+        <section className="py-16 px-6 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-3xl font-semibold text-gray-800 mb-8 text-center">
+              Contact & Location
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Phone className="text-green-700" />
-                  <span className="text-gray-700">{farm.farmerPhone}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="flex flex-col justify-center space-y-6">
+                <div className="flex items-center gap-4">
+                  <Phone className="text-green-600" size={24} />
+                  <span className="text-gray-700 text-lg">
+                    {farm.farmerPhone}
+                  </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="text-green-700" />
-                  <span className="text-gray-700">{farm.farmerEmail}</span>
+                <div className="flex items-center gap-4">
+                  <Mail className="text-green-600" size={24} />
+                  <span className="text-gray-700 text-lg">
+                    {farm.farmerEmail}
+                  </span>
                 </div>
               </div>
-              <div className="bg-gray-200 rounded-lg overflow-hidden h-48 md:h-auto">
-              {farm.farmLocation?.coordinates && !showDirections ? ( // Hide map when DirectionsMap is open
-                  <div
-                    ref={mapContainerRef}
-                    className="w-full h-64 md:h-96 cursor-pointer"
-                  />
+              <div className="rounded-xl overflow-hidden shadow-md">
+                {farm.farmLocation?.coordinates && !showDirections ? (
+                  <div ref={mapContainerRef} className="w-full h-80" />
                 ) : (
-                  <p className="text-center text-gray-500 flex items-center justify-center h-64 md:h-96">
-                    {showDirections ? "Viewing directions" : "Location unavailable"}
+                  <p className="text-center text-gray-500 flex items-center justify-center h-80">
+                    {showDirections
+                      ? "Viewing directions"
+                      : "Location unavailable"}
                   </p>
                 )}
               </div>
@@ -329,28 +379,39 @@ const FarmProfilePage = () => {
           </div>
         </section>
 
-        <section className="py-12 px-6">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-semibold text-green-800 mb-8 text-center">
+        {/* Reviews */}
+        <section className="py-16 px-6 bg-gray-100">
+          <div className="max-w-7xl mx-auto">
+            <h2 className="text-3xl font-semibold text-gray-800 mb-8 text-center">
               Customer Reviews
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+            {/* Review Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
               {reviews.length === 0 ? (
-                <p className="text-center text-gray-500 col-span-2">
-                  No reviews yet.
+                <p className="col-span-full text-center text-gray-500 text-base">
+                  No reviews yet. Share your thoughts!
                 </p>
               ) : (
                 reviews.map((review) => (
                   <div
                     key={review._id}
-                    className="bg-white p-6 rounded-lg shadow-sm"
+                    className="bg-white/30 backdrop-blur-md p-4 rounded-lg shadow-sm hover:scale-105 hover:rotate-2 transition-all duration-300 animate-fade-in"
                   >
                     {editReviewId === review._id ? (
-                      <form onSubmit={handleUpdateReview}>
-                        <div className="mb-4">
-                          <label className="block text-gray-700 mb-2">
-                            Rating
-                          </label>
+                      <div className="space-y-2">
+                        <div className="flex flex-col items-center">
+                          <img
+                            src={
+                              consumer.profileImage
+                                ? `http://localhost:5000${consumer.profileImage}`
+                                : "https://via.placeholder.com/40"
+                            }
+                            alt={consumer.fullName}
+                            className="w-12 h-12 rounded-full object-cover ring-2 ring-teal-400 mb-2"
+                          />
+                          <h3 className="text-xs font-bold text-gray-800">
+                            {consumer.fullName}
+                          </h3>
                           <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map((star) => (
                               <button
@@ -360,10 +421,10 @@ const FarmProfilePage = () => {
                                 className="focus:outline-none"
                               >
                                 <Star
-                                  size={24}
+                                  size={16}
                                   className={`${
                                     editForm.rating >= star
-                                      ? "text-yellow-400 fill-yellow-400"
+                                      ? "text-yellow-500 fill-yellow-500 animate-pop"
                                       : "text-gray-300"
                                   }`}
                                 />
@@ -371,144 +432,140 @@ const FarmProfilePage = () => {
                             ))}
                           </div>
                         </div>
-                        <div className="mb-4">
-                          <label className="block text-gray-700 mb-2">
-                            Your Review
-                          </label>
-                          <textarea
-                            name="review"
-                            value={editForm.review}
-                            onChange={handleEditInputChange}
-                            rows="4"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                            required
-                          ></textarea>
-                        </div>
-                        <div className="flex gap-2">
+                        <input
+                          name="review"
+                          value={editForm.review}
+                          onChange={handleEditInputChange}
+                          className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                          placeholder="Edit review (50 chars max)"
+                          maxLength={50}
+                          required
+                        />
+                        <div className="flex gap-2 justify-center">
                           <button
                             type="submit"
-                            className="bg-green-700 hover:bg-green-800 text-white py-2 px-4 rounded-md transition-colors"
+                            onClick={handleUpdateReview}
+                            className="bg-teal-400 hover:bg-teal-500 text-white py-1 px-2 rounded-md text-xs transition-all duration-200"
                           >
-                            Update
+                            Save
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditReviewId(null)}
-                            className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md transition-colors"
+                            className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-1 px-2 rounded-md text-xs transition-all duration-200"
                           >
                             Cancel
                           </button>
                         </div>
-                      </form>
+                      </div>
                     ) : (
-                      <>
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
-                            <img
-                              src="/api/placeholder/40/40"
-                              alt={review.name || review.consumerId?.fullName}
-                              className="w-full h-full object-cover"
+                      <div className="flex flex-col items-center relative">
+                        <img
+                          src={
+                            review.consumerId?.profileImage
+                              ? `http://localhost:5000${review.consumerId.profileImage}`
+                              : "https://via.placeholder.com/40"
+                          }
+                          alt={review.consumerId?.fullName || "Reviewer"}
+                          className="w-12 h-12 rounded-full object-cover ring-2 ring-teal-400 mb-2"
+                        />
+                        <h3 className="text-xs font-bold text-gray-800">
+                          {review.consumerId?.fullName || "Anonymous"}
+                        </h3>
+                        <div className="flex gap-1 mb-2">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={16}
+                              className={`${
+                                star <= review.rating
+                                  ? "text-yellow-500 fill-yellow-500 animate-pop"
+                                  : "text-gray-300"
+                              }`}
                             />
-                          </div>
-                          <div>
-                            <h3 className="font-medium">
-                              {review.name || review.consumerId?.fullName}
-                            </h3>
-                            <div className="flex">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  size={16}
-                                  className={`${
-                                    star <= review.rating
-                                      ? "text-yellow-400 fill-yellow-400"
-                                      : "text-gray-300"
-                                  }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
+                          ))}
                         </div>
-                        <p className="text-gray-700 text-sm mb-2">
-                          {review.review}
+                        <p className="text-xs text-black text-center">
+                          {truncateReview(review.review)}
                         </p>
-                        {review.consumerId?._id === consumerId && (
-                          <div className="flex gap-2">
+                        {review.consumerId?._id === consumer._id && (
+                          <div className="absolute bottom-2 right-2 flex gap-1">
                             <button
                               onClick={() => handleEditReview(review)}
-                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                              className="text-teal-400 hover:animate-spin transition-all duration-200"
+                              title="Edit"
                             >
-                              <Edit2 size={16} />
-                              Edit
+                              <Edit2 size={12} />
                             </button>
                             <button
-                              onClick={() => handleDeleteReview(review._id)}
-                              className="text-red-600 hover:text-red-800 flex items-center gap-1"
+                              onClick={() => openDeleteModal(review._id)}
+                              className="text-red-500 hover:animate-spin transition-all duration-200"
+                              title="Delete"
                             >
-                              <Trash2 size={16} />
-                              Delete
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 ))
               )}
             </div>
-
-            <div className="max-w-2xl mx-auto">
-              <h3 className="text-xl font-medium text-green-800 mb-4 text-center">
-                Write a Review
+            {/* Review Form */}
+            <div className="max-w-md mx-auto bg-gray-200 p-6 rounded-lg shadow-md border-2 border-gradient-to-r from-teal-400 to-pink-400">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 text-center">
+                Share Your Review
               </h3>
-              <form onSubmit={handleSubmitReview}>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">Your Name</label>
+              <form onSubmit={handleSubmitReview} className="space-y-3">
+                <div className="flex flex-col items-center">
+                  <img
+                    src={
+                      consumer.profileImage
+                        ? `http://localhost:5000${consumer.profileImage}`
+                        : "https://via.placeholder.com/40"
+                    }
+                    alt={consumer.fullName}
+                    className="w-12 h-12 rounded-full object-cover ring-2 ring-teal-400 mb-2"
+                  />
                   <input
                     type="text"
-                    value={consumerName}
+                    value={consumer.fullName}
                     disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100"
+                    className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs text-center bg-gray-100"
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">Rating</label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => handleRatingChange(star)}
-                        className="focus:outline-none"
-                      >
-                        <Star
-                          size={24}
-                          className={`${
-                            reviewForm.rating >= star
-                              ? "text-yellow-400 fill-yellow-400"
-                              : "text-gray-300"
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex justify-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleRatingChange(star)}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        size={16}
+                        className={`${
+                          reviewForm.rating >= star
+                            ? "text-yellow-500 fill-yellow-500 animate-pop"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
                 </div>
-                <div className="mb-4">
-                  <label className="block text-gray-700 mb-2">
-                    Your Review
-                  </label>
-                  <textarea
-                    name="review"
-                    value={reviewForm.review}
-                    onChange={handleInputChange}
-                    rows="4"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                    required
-                  ></textarea>
-                </div>
+                <input
+                  name="review"
+                  value={reviewForm.review}
+                  onChange={handleInputChange}
+                  className="w-full px-2 py-1 border border-gray-300 rounded-md text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  placeholder="Your review (50 chars max)"
+                  maxLength={50}
+                  required
+                />
                 <button
                   type="submit"
-                  className="bg-green-700 hover:bg-green-800 text-white py-2 px-4 rounded-md transition-colors"
+                  className="w-full bg-teal-400 hover:bg-teal-500 hover:animate-pulse text-white py-1.5 px-3 rounded-md text-sm transition-all duration-200"
                 >
                   Submit Review
                 </button>
@@ -516,90 +573,11 @@ const FarmProfilePage = () => {
             </div>
           </div>
         </section>
-
-        <section className="py-12 px-6 bg-green-50">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-2xl font-semibold text-green-800 mb-8 text-center">
-              Similar Farms
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-lg overflow-hidden shadow-md">
-                <div className="h-48 overflow-hidden">
-                  <img
-                    src="/api/placeholder/400/300"
-                    alt="Sunrise Organic Farm"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-1">
-                    Sunrise Organic Farm
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-3">
-                    Specializing in organic vegetables and fruits
-                  </p>
-                  <a
-                    href="#"
-                    className="text-green-700 text-sm font-medium hover:underline"
-                  >
-                    Learn More →
-                  </a>
-                </div>
-              </div>
-              <div className="bg-white rounded-lg overflow-hidden shadow-md">
-                <div className="h-48 overflow-hidden">
-                  <img
-                    src="/api/placeholder/400/300"
-                    alt="Valley View Gardens"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-1">
-                    Valley View Gardens
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-3">
-                    Fresh flowers and seasonal produce
-                  </p>
-                  <a
-                    href="#"
-                    className="text-green-700 text-sm font-medium hover:underline"
-                  >
-                    Learn More →
-                  </a>
-                </div>
-              </div>
-              <div className="bg-white rounded-lg overflow-hidden shadow-md">
-                <div className="h-48 overflow-hidden">
-                  <img
-                    src="/api/placeholder/400/300"
-                    alt="Heritage Family Farm"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-1">
-                    Heritage Family Farm
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-3">
-                    Heritage varieties and artisanal products
-                  </p>
-                  <a
-                    href="#"
-                    className="text-green-700 text-sm font-medium hover:underline"
-                  >
-                    Learn More →
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
 
       {isChatOpen && (
         <ChatPopup
-          user={{ id: id, name: farm.farmName, recipientId: id }}
+          user={{ id: farm._id, name: farm.farmName, recipientId: id }}
           onClose={() => setIsChatOpen(false)}
         />
       )}
@@ -609,64 +587,78 @@ const FarmProfilePage = () => {
           onClose={() => setShowDirections(false)}
         />
       )}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDelete}
+      />
 
-      <footer className="bg-green-800 text-white py-8 px-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-gray-800 text-white py-12 px-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="font-semibold mb-4">freshly local</h3>
-            <p className="text-green-100 text-sm">
+            <h3 className="text-xl font-semibold mb-4">Freshly Local</h3>
+            <p className="text-gray-300 text-sm">
               Connecting you to local farms and fresh produce.
             </p>
           </div>
           <div>
-            <h3 className="font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-green-100">
+            <h3 className="text-xl font-semibold mb-4">Quick Links</h3>
+            <ul className="space-y-2 text-sm text-gray-300">
               <li>
-                <a href="#" className="hover:text-white">
+                <a href="#" className="hover:text-white transition-colors">
                   About Us
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white">
+                <a href="#" className="hover:text-white transition-colors">
                   Find Farms
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-white">
-                  How it Works
+                <a href="#" className="hover:text-white transition-colors">
+                  How It Works
                 </a>
               </li>
             </ul>
           </div>
           <div>
-            <h3 className="font-semibold mb-4">Contact</h3>
-            <ul className="space-y-2 text-sm text-green-100">
+            <h3 className="text-xl font-semibold mb-4">Contact</h3>
+            <ul className="space-y-2 text-sm text-gray-300">
               <li>support@freshlylocal.com</li>
               <li>(555) 123-4567</li>
             </ul>
           </div>
           <div>
-            <h3 className="font-semibold mb-4">Follow Us</h3>
+            <h3 className="text-xl font-semibold mb-4">Follow Us</h3>
             <div className="flex gap-4">
-              <a href="#" className="text-green-100 hover:text-white">
-                <span className="w-8 h-8 border border-green-100 rounded-full flex items-center justify-center">
+              <a
+                href="#"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                <span className="w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center">
                   f
                 </span>
               </a>
-              <a href="#" className="text-green-100 hover:text-white">
-                <span className="w-8 h-8 border border-green-100 rounded-full flex items-center justify-center">
+              <a
+                href="#"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                <span className="w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center">
                   in
                 </span>
               </a>
-              <a href="#" className="text-green-100 hover:text-white">
-                <span className="w-8 h-8 border border-green-100 rounded-full flex items-center justify-center">
+              <a
+                href="#"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                <span className="w-10 h-10 border border-gray-300 rounded-full flex items-center justify-center">
                   t
                 </span>
               </a>
             </div>
           </div>
         </div>
-        <div className="max-w-6xl mx-auto pt-6 mt-6 border-t border-green-700 text-center text-sm text-green-100">
+        <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-gray-700 text-center text-sm text-gray-300">
           © 2025 FreshlyLocal. All rights reserved.
         </div>
       </footer>

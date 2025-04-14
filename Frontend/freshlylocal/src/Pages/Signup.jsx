@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import API from "../utils/axiosInstance";
 import { MapPin } from "lucide-react";
-import L from "leaflet"; // Import Leaflet
-import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const Signup = () => {
   const [userType, setUserType] = useState("consumer");
@@ -15,12 +15,13 @@ const Signup = () => {
     farmLocation: { type: "Point", coordinates: [0, 0], placeName: "" },
     userType: userType,
     termsAccepted: false,
+    profileImage: null, // Changed from profilePicture
+    farmImage: null,
   });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showMap, setShowMap] = useState(false);
 
-  // Initialize map with current location when shown
   useEffect(() => {
     if (showMap && userType === "farmer") {
       let initialLat = 0;
@@ -35,11 +36,11 @@ const Signup = () => {
           },
           (error) => {
             console.error("Geolocation error:", error);
-            initializeMap(initialLat, initialLng); // Fallback to (0, 0)
+            initializeMap(initialLat, initialLng);
           }
         );
       } else {
-        initializeMap(initialLat, initialLng); // Fallback to (0, 0)
+        initializeMap(initialLat, initialLng);
       }
     }
   }, [showMap, userType]);
@@ -55,7 +56,6 @@ const Signup = () => {
         ...prev,
         farmLocation: { ...prev.farmLocation, placeName },
       }));
-      console.log("Place Name (Nominatim):", placeName);
     } catch (err) {
       console.error("Nominatim geocoding failed:", err);
       setFormData((prev) => ({
@@ -69,10 +69,14 @@ const Signup = () => {
   };
 
   const initializeMap = (lat, lng) => {
-    const map = L.map("map").setView([lat, lng], lat === 0 && lng === 0 ? 2 : 15);
+    const map = L.map("map").setView(
+      [lat, lng],
+      lat === 0 && lng === 0 ? 2 : 15
+    );
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
     const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
@@ -81,16 +85,14 @@ const Signup = () => {
 
     marker.on("dragend", () => {
       const position = marker.getLatLng();
-      const newCoords = [position.lng, position.lat]; // [lng, lat]
+      const newCoords = [position.lng, position.lat];
       setFormData((prev) => ({
         ...prev,
         farmLocation: { ...prev.farmLocation, coordinates: newCoords },
       }));
-      console.log("Selected Coordinates:", newCoords);
       getPlaceNameFromCoords(position.lat, position.lng);
     });
 
-    // Optional: Add search functionality with Nominatim
     const searchInput = document.getElementById("location-search");
     searchInput.addEventListener("keypress", async (e) => {
       if (e.key === "Enter") {
@@ -114,8 +116,6 @@ const Signup = () => {
                 placeName: data[0].display_name || "Location not found",
               },
             }));
-            console.log("Selected Coordinates:", newCoords);
-            console.log("Place Name (Nominatim Search):", data[0].display_name);
           }
         } catch (err) {
           console.error("Nominatim search failed:", err);
@@ -132,11 +132,20 @@ const Signup = () => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files[0],
+    }));
+  };
+
   const handleUserTypeChange = (type) => {
     setUserType(type);
     setFormData((prev) => ({
       ...prev,
       userType: type,
+      farmImage: type === "consumer" ? null : prev.farmImage,
     }));
   };
 
@@ -145,9 +154,30 @@ const Signup = () => {
     setLoading(true);
     setError(null);
 
+    if (userType === "farmer" && !formData.farmImage) {
+      setError("Farm image is required for farmers.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      console.log("Form Data:", formData);
-      const response = await API.post("/users/signup", formData);
+      const data = new FormData();
+      data.append("fullName", formData.fullName);
+      data.append("email", formData.email);
+      data.append("phoneNumber", formData.phoneNumber);
+      data.append("password", formData.password);
+      data.append("userType", formData.userType);
+      data.append("farmLocation", JSON.stringify(formData.farmLocation));
+      if (formData.farmName) data.append("farmName", formData.farmName);
+      if (formData.profileImage)
+        data.append("profileImage", formData.profileImage); // Changed from profilePicture
+      if (formData.farmImage) data.append("farmImage", formData.farmImage);
+
+      console.log("Form Data:", Object.fromEntries(data)); // Debug
+      const response = await API.post("/users/signup", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       if (response.status === 200) {
         console.log("Account created successfully:", response.data);
       }
@@ -301,6 +331,19 @@ const Signup = () => {
                 required
               />
             </div>
+            <div>
+              <label className="block text-sm mb-1">
+                Profile Image (Optional)
+              </label>{" "}
+              {/* Updated label */}
+              <input
+                type="file"
+                name="profileImage" // Changed from profilePicture
+                className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                onChange={handleFileChange}
+                accept="image/*"
+              />
+            </div>
           </div>
         </div>
 
@@ -331,7 +374,10 @@ const Signup = () => {
                     onChange={(e) => {
                       setFormData((prev) => ({
                         ...prev,
-                        farmLocation: { ...prev.farmLocation, placeName: e.target.value },
+                        farmLocation: {
+                          ...prev.farmLocation,
+                          placeName: e.target.value,
+                        },
                       }));
                     }}
                   />
@@ -347,11 +393,23 @@ const Signup = () => {
                   Coordinates: {formData.farmLocation.coordinates.join(", ")}
                 </p>
               </div>
+              <div>
+                <label className="block text-sm mb-1">
+                  Farm Image (Required)
+                </label>
+                <input
+                  type="file"
+                  name="farmImage"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  required
+                />
+              </div>
             </div>
           </div>
         )}
 
-        {/* Map Popup */}
         {showMap && userType === "farmer" && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white p-4 rounded-lg w-full max-w-2xl">
@@ -411,6 +469,3 @@ const Signup = () => {
 };
 
 export default Signup;
-
-
- 
