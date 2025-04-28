@@ -1,4 +1,3 @@
-// C:\Users\CHME\Desktop\freshly-local\frontend\src\Pages\FarmDetails.jsx
 import {
   MapPin,
   Phone,
@@ -11,6 +10,8 @@ import {
   Truck,
   Edit2,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
@@ -67,6 +68,7 @@ const FarmProfilePage = () => {
   const [showDirections, setShowDirections] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [reviewToDelete, setReviewToDelete] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // New state for carousel
   const { openChat } = useChat();
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -204,9 +206,31 @@ const FarmProfilePage = () => {
     }
   };
 
-  const handleEditReview = (review) => {
+  const handleEditReview = async (review) => {
     setEditReviewId(review._id);
     setEditForm({ rating: review.rating, review: review.review });
+  };
+
+  const handleUpdateReview = async () => {
+    try {
+      const response = await axios.put(
+        `http://localhost:5000/api/reviews/${editReviewId}`,
+        {
+          rating: editForm.rating,
+          review: editForm.review,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+      setReviews(
+        reviews.map((r) => (r._id === editReviewId ? response.data.review : r))
+      );
+      setEditReviewId(null);
+      setEditForm({ rating: 0, review: "" });
+    } catch (error) {
+      console.error("Error updating review:", error);
+    }
   };
 
   const handleDeleteReview = async (reviewId) => {
@@ -243,6 +267,19 @@ const FarmProfilePage = () => {
     return text.slice(0, maxLength) + "...";
   };
 
+  // Carousel navigation
+  const prevImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev === 0 ? farm.farmImage.length - 1 : prev - 1
+    );
+  };
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev === farm.farmImage.length - 1 ? 0 : prev + 1
+    );
+  };
+
   if (!farm) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -262,16 +299,29 @@ const FarmProfilePage = () => {
               <div className="lg:col-span-3">
                 {farm.farmImage && farm.farmImage.length > 0 ? (
                   <div className="relative rounded-xl overflow-hidden shadow-md">
-                    <div className="flex space-x-4 snap-x snap-mandatory overflow-x-auto scrollbar-hide">
-                      {farm.farmImage.map((img, index) => (
-                        <img
-                          key={index}
-                          src={`http://localhost:5000${img}`}
-                          alt={`Farm Image ${index + 1}`}
-                          className="w-full h-96 object-cover snap-center rounded-xl"
-                        />
-                      ))}
-                    </div>
+                    <img
+                      src={`http://localhost:5000${farm.farmImage[currentImageIndex]}`}
+                      alt={`Farm Image ${currentImageIndex + 1}`}
+                      className="w-full h-96 object-cover transition-opacity duration-300"
+                    />
+                    {farm.farmImage.length > 1 && (
+                      <>
+                        <button
+                          onClick={prevImage}
+                          className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white drop-shadow-md opacity-75 hover:opacity-100 hover:scale-110 transition-transform duration-200 opacity-75 hover:opacity-100"
+                          aria-label="Previous Image"
+                        >
+                          <ChevronLeft size={24} />
+                        </button>
+                        <button
+                          onClick={nextImage}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 text-white drop-shadow-md opacity-75 hover:opacity-100 hover:scale-110 transition-transform duration-200 opacity-75 hover:opacity-100"
+                          aria-label="Next Image"
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-gray-200 rounded-xl h-96 flex items-center justify-center text-gray-500">
@@ -304,6 +354,7 @@ const FarmProfilePage = () => {
                       id: farm._id,
                       name: farm.farmName,
                       recipientId: id,
+                      avatar: farm.profileImage,
                     })
                   }
                   className="w-full mt-4 bg-white hover:bg-gray-100 text-gray-800 py-3 px-6 rounded-xl flex items-center justify-center gap-2 border border-gray-200 transition-all duration-300 shadow-md"
@@ -577,7 +628,12 @@ const FarmProfilePage = () => {
 
       {isChatOpen && (
         <ChatPopup
-          user={{ id: farm._id, name: farm.farmName, recipientId: id }}
+          user={{
+            id: farm._id,
+            name: farm.farmName,
+            recipientId: id,
+            avatar: farm.profileImage,
+          }}
           onClose={() => setIsChatOpen(false)}
         />
       )}

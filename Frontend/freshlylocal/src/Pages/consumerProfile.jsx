@@ -1,4 +1,3 @@
-// FarmerProfile.js
 import React, { useState, useEffect, useRef } from "react";
 import { MapPin, Mail, Edit, Tractor } from "lucide-react";
 import axios from "axios";
@@ -9,7 +8,12 @@ const FarmerProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
   const [profileImage, setProfileImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [farmImages, setFarmImages] = useState([]);
+  const [notification, setNotification] = useState({
+    show: false,
+    message: "",
+  });
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -48,7 +52,14 @@ const FarmerProfile = () => {
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (name === "profileImage") {
-      setProfileImage(files[0]);
+      const file = files[0];
+      setProfileImage(file);
+      if (file) {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreview(previewUrl);
+      } else {
+        setImagePreview(null);
+      }
     } else if (name === "farmImages") {
       setFarmImages([...files]);
     }
@@ -62,10 +73,9 @@ const FarmerProfile = () => {
     e.preventDefault();
     const data = new FormData();
     data.append("fullName", formData.fullName);
-    data.append("email", formData.email);
     data.append("phoneNumber", formData.phoneNumber);
     data.append("farmName", formData.farmName || "");
-    data.append("farmDescription", formData.farmdescription || "");
+    data.append("farmdescription", formData.farmdescription || "");
     data.append("farmLocation", JSON.stringify(formData.farmLocation));
     if (profileImage) data.append("profileImage", profileImage);
     farmImages.forEach((file) => data.append("farmImages", file));
@@ -84,9 +94,19 @@ const FarmerProfile = () => {
       setProfileData(response.data.user);
       setIsEditing(false);
       setProfileImage(null);
+      setImagePreview(null);
       setFarmImages([]);
+      setNotification({ show: true, message: "Profile updated successfully!" });
+      setTimeout(() => setNotification({ show: false, message: "" }), 3000);
     } catch (error) {
       console.error("Error updating profile:", error);
+      setNotification({
+        show: true,
+        message: `Failed to update profile: ${
+          error.response?.data?.msg || "Unknown error"
+        }`,
+      });
+      setTimeout(() => setNotification({ show: false, message: "" }), 3000);
     }
   };
 
@@ -94,32 +114,52 @@ const FarmerProfile = () => {
     <div className="flex h-screen bg-gray-100">
       <Sidebar />
       <div className="flex-1 p-8 overflow-y-auto">
+        {notification.show && (
+          <div className="fixed top-4 right-4 z-50 animate-fade-in">
+            <div
+              className={`p-4 rounded-lg shadow-lg text-white ${
+                notification.message.includes("Failed")
+                  ? "bg-red-600"
+                  : "bg-green-600"
+              }`}
+            >
+              {notification.message}
+            </div>
+          </div>
+        )}
         <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                {profileData.profileImage ? (
+              <div
+                className="relative w-20 h-20"
+                onClick={handleProfilePicClick}
+                title={isEditing ? "Click to change profile picture" : ""}
+              >
+                {imagePreview || profileData.profileImage ? (
                   <img
-                    src={`http://localhost:5000${profileData.profileImage}`}
+                    src={
+                      imagePreview ||
+                      `http://localhost:5000${profileData.profileImage}`
+                    }
                     alt="Profile"
-                    className={`w-20 h-20 rounded-full object-cover ${
-                      isEditing ? "cursor-pointer opacity-75" : ""
+                    className={`w-20 h-20 rounded-full object-cover transition-opacity ${
+                      isEditing
+                        ? "cursor-pointer opacity-75 hover:opacity-100"
+                        : ""
                     }`}
-                    onClick={handleProfilePicClick}
                   />
                 ) : (
                   <div
-                    className={`w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-2xl ${
-                      isEditing ? "cursor-pointer" : ""
+                    className={`w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-2xl transition-colors ${
+                      isEditing ? "cursor-pointer hover:bg-gray-300" : ""
                     }`}
-                    onClick={handleProfilePicClick}
                   >
                     {profileData.fullName ? profileData.fullName[0] : "?"}
                   </div>
                 )}
                 {isEditing && (
-                  <div className="absolute inset-0 flex items-center justify-center text-white bg-black bg-opacity-50 rounded-full">
-                    <Edit className="w-4 h-4" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded-full transition-opacity hover:bg-opacity-50 cursor-pointer">
+                    <Edit className="w-6 h-6 text-white" />
                   </div>
                 )}
                 <input
@@ -153,7 +193,15 @@ const FarmerProfile = () => {
               </div>
             </div>
             <button
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                setIsEditing(!isEditing);
+                if (isEditing) {
+                  setProfileImage(null);
+                  setImagePreview(null);
+                  setFarmImages([]);
+                  setFormData(profileData);
+                }
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
             >
               <Edit className="w-4 h-4" />
@@ -188,7 +236,8 @@ const FarmerProfile = () => {
                     name="email"
                     value={formData.email || ""}
                     onChange={handleInputChange}
-                    className="w-full p-3 border rounded-md"
+                    className="w-full p-3 border rounded-md bg-gray-100"
+                    disabled
                   />
                 </div>
                 <div>
@@ -226,12 +275,11 @@ const FarmerProfile = () => {
                     <label className="block text-sm text-gray-600 mb-2">
                       Farm Description
                     </label>
-                    <input
-                      type="text"
-                      name="farmDescription"
+                    <textarea
+                      name="farmdescription"
                       value={formData.farmdescription || ""}
                       onChange={handleInputChange}
-                      className="w-full p-3 border rounded-md"
+                      className="w-full p-3 border rounded-md min-h-[100px]"
                     />
                   </div>
                   <div>

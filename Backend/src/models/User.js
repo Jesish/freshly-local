@@ -49,9 +49,18 @@ const UserSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ["consumer", "farmer"],
+    enum: ["consumer", "farmer", "admin"],
     default: "consumer",
   },
+  otp: {
+    type: String,
+  },
+  otpExpires: {
+    type: Date,
+  },
+  verificationDocuments: [{ type: String }], // Array of file paths
+  isVerified: { type: Boolean, default: false }, // False for farmers until approved
+  createdAt: { type: Date, default: Date.now },
 });
 
 //hash the password

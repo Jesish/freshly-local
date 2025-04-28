@@ -13,7 +13,7 @@ import { useNavigate } from "react-router-dom";
 const OrderHistory = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [farmerDetails, setFarmerDetails] = useState(null);
+  const [farmDetails, setFarmDetails] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,53 +32,60 @@ const OrderHistory = () => {
     }
   };
 
-  const fetchFarmerDetails = async (id) => {
+  const fetchFarmDetails = async (farmIds) => {
+    const details = {};
     try {
-      const { data } = await axios.get(
-        `http://localhost:5000/api/users/farm/${id}`,
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      for (const id of farmIds) {
+        if (!details[id]) {
+          const { data } = await axios.get(
+            `http://localhost:5000/api/users/farm/${id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
+            }
+          );
+          details[id] = {
+            farmName: data.farmName || "Unknown Farm",
+            fullName: data.farmerName || "Unknown Farmer",
+            farmLocation: data.farmLocation || "Not specified",
+          };
         }
-      );
-      setFarmerDetails({
-        farmName: data.farmName,
-        fullName: data.farmerName,
-        farmLocation: data.farmLocation,
-      });
+      }
+      setFarmDetails(details);
     } catch (error) {
-      console.error("Error fetching farmer details:", error);
-      setFarmerDetails({
-        farmName: "Unknown Farm",
-        fullName: "Unknown Farmer",
+      console.error("Error fetching farm details:", error);
+      farmIds.forEach((id) => {
+        details[id] = { farmName: "Unknown Farm", fullName: "Unknown Farmer" };
       });
+      setFarmDetails(details);
     }
   };
 
   const getStatusIcon = (status) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "pending":
-        return <Clock size={20} className="text-yellow-500" />;
+        return <Clock size={16} className="text-yellow-500" />;
       case "on the way":
-        return <Truck size={20} className="text-orange-500" />;
+        return <Truck size={16} className="text-orange-500" />;
       case "delivered":
-        return <CheckCircle size={20} className="text-green-500" />;
+        return <CheckCircle size={16} className="text-green-500" />;
       case "unpaid":
-        return <XCircle size={20} className="text-red-500" />;
+        return <XCircle size={16} className="text-red-500" />;
       default:
-        return <Clock size={20} className="text-gray-500" />;
+        return <Clock size={16} className="text-gray-500" />;
     }
   };
 
   const handleViewDetails = (order) => {
     setSelectedOrder(order);
-    if (order.items.length > 0) {
-      fetchFarmerDetails(order.items[0].farm_id);
-    }
+    const farmIds = [...new Set(order.items.map((item) => item.farm_id))];
+    fetchFarmDetails(farmIds);
   };
 
   const closeModal = () => {
     setSelectedOrder(null);
-    setFarmerDetails(null);
+    setFarmDetails({});
   };
 
   return (
@@ -126,12 +133,6 @@ const OrderHistory = () => {
                       Placed on {new Date(order.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(order.status)}
-                    <span className="text-md font-medium text-gray-700 capitalize">
-                      {order.status}
-                    </span>
-                  </div>
                 </div>
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between text-gray-700">
@@ -142,12 +143,6 @@ const OrderHistory = () => {
                     <p>
                       <span className="font-medium">Total:</span> NPR{" "}
                       {order.totalAmount.toFixed(2)}
-                    </p>
-                    <p>
-                      <span className="font-medium">Delivery:</span>{" "}
-                      {order.deliveryDate
-                        ? new Date(order.deliveryDate).toLocaleDateString()
-                        : "TBD"}
                     </p>
                   </div>
                   <button
@@ -185,43 +180,14 @@ const OrderHistory = () => {
                     {new Date(selectedOrder.createdAt).toLocaleDateString()}
                   </p>
                   <p className="text-gray-600">
-                    <span className="font-medium">Status:</span>{" "}
-                    <span className="capitalize">{selectedOrder.status}</span>
-                  </p>
-                  <p className="text-gray-600">
-                    <span className="font-medium">Delivery Date:</span>{" "}
-                    {selectedOrder.deliveryDate
-                      ? new Date(
-                          selectedOrder.deliveryDate
-                        ).toLocaleDateString()
-                      : "TBD"}
-                  </p>
-                  <p className="text-gray-600">
                     <span className="font-medium">Total:</span> NPR{" "}
                     {selectedOrder.totalAmount.toFixed(2)}
                   </p>
+                  <p className="text-gray-600">
+                    <span className="font-medium">Delivery Address:</span>{" "}
+                    {selectedOrder.deliveryLocation.address}
+                  </p>
                 </div>
-
-                {/* Farmer Info */}
-                {farmerDetails && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      Purchased From
-                    </h3>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Farm:</span>{" "}
-                      {farmerDetails.farmName}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Farmer:</span>{" "}
-                      {farmerDetails.fullName}
-                    </p>
-                    <p className="text-gray-600">
-                      <span className="font-medium">Location:</span>{" "}
-                      {farmerDetails.farmLocation || "Not specified"}
-                    </p>
-                  </div>
-                )}
 
                 {/* Items List */}
                 <div className="border-t pt-4">
@@ -230,14 +196,38 @@ const OrderHistory = () => {
                     {selectedOrder.items.map((item) => (
                       <li
                         key={item.product._id}
-                        className="flex justify-between text-gray-700"
+                        className="flex flex-col gap-1 text-gray-700 border-b pb-2"
                       >
-                        <span>
-                          {item.product.name} (x{item.quantity})
-                        </span>
-                        <span>
-                          NPR {(item.price * item.quantity).toFixed(2)}
-                        </span>
+                        <div className="flex justify-between">
+                          <span>
+                            {item.product.name} (x{item.quantity}) [{item.unit}]
+                          </span>
+                          <span>
+                            NPR {(item.price * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium">Farm:</span>
+                          <span>
+                            {farmDetails[item.farm_id]?.farmName ||
+                              "Loading..."}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium">Status:</span>
+                          <span className="flex items-center gap-1 capitalize">
+                            {getStatusIcon(item.status)}
+                            {item.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-medium">Delivery Date:</span>
+                          <span>
+                            {item.deliveryDate
+                              ? new Date(item.deliveryDate).toLocaleDateString()
+                              : "TBD"}
+                          </span>
+                        </div>
                       </li>
                     ))}
                   </ul>

@@ -24,7 +24,7 @@ function SuccessPage() {
             <ShoppingBag size={20} /> View Order History
           </button>
           <button
-            onClick={() => navigate("/ProductPage/")} // Replace with dynamic farmId later
+            onClick={() => navigate("/")} // Replace with dynamic farmId later
             className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition-all duration-200"
           >
             Continue Shopping

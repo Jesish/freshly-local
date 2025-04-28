@@ -17,7 +17,10 @@ import FailurePage from "./Pages/FailurePage";
 import OrderHistory from "./Pages/OrderHistory";
 import Messages from "./Pages/FarmerMessage";
 import ChatPage from "./Pages/Chatpage";
-
+import ForgotPassword from "./Pages/ForgotPassword";
+import ResetPassword from "./Pages/ResetPassword";
+import AdminDashboard from "./Pages/AdminDashboard";
+import AdminLogin from "./Pages/AdminLogin";
 
 function App() {
   return (
@@ -42,7 +45,10 @@ function App() {
         <Route path="/failure" element={<FailurePage />} />
         <Route path="/orders" element={<OrderHistory />} />
         <Route path="messages/:conversationId" element={<ChatPage />} />
-
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
       </Routes>
       {/* <Signup />
       <Login /> */}

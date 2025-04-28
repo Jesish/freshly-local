@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { X, PlusCircle, MinusCircle, ShoppingBag } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import farmer from "../assets/farmer.png";
 
 const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
   const [cartItems, setCartItems] = useState([]);
   const navigate = useNavigate();
+  const BACKEND_URL = "http://localhost:5000";
 
   useEffect(() => {
     if (isOpen) fetchCart();
@@ -13,15 +15,19 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
 
   const fetchCart = async () => {
     try {
-      const { data } = await axios.get("http://localhost:5000/api/getcart", {
+      const { data } = await axios.get(`${BACKEND_URL}/api/getcart`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
+      console.log(
+        "CartModal: Fetched cart items:",
+        JSON.stringify(data.items, null, 2)
+      );
       setCartItems(data.items || []);
       if (onCartUpdate) await onCartUpdate();
     } catch (error) {
-      console.error("Error fetching cart:", error);
+      console.error("CartModal: Error fetching cart:", error);
       setCartItems([]);
     }
   };
@@ -34,22 +40,22 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
       if (!currentItem || currentItem.quantity + change < 1) return;
       const newQuantity = currentItem.quantity + change;
       await axios.post(
-        "http://localhost:5000/api/update",
+        `${BACKEND_URL}/api/update`,
         { productId, quantity: newQuantity },
         {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         }
       );
       fetchCart();
-      if (onCartUpdate) await onCartUpdate(); // Update Navbar count
+      if (onCartUpdate) await onCartUpdate();
     } catch (error) {
-      console.error("Error updating quantity:", error);
+      console.error("CartModal: Error updating quantity:", error);
     }
   };
 
   const removeItem = async (productId) => {
     try {
-      await axios.delete(`http://localhost:5000/api/remove/${productId}`, {
+      await axios.delete(`${BACKEND_URL}/api/remove/${productId}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
@@ -58,19 +64,19 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
       fetchCart();
       if (onCartUpdate) await onCartUpdate();
     } catch (error) {
-      console.error("Error removing item:", error);
+      console.error("CartModal: Error removing item:", error);
     }
   };
 
   const clearCart = async () => {
     try {
-      await axios.delete("http://localhost:5000/api/clear", {
+      await axios.delete(`${BACKEND_URL}/api/clear`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       fetchCart();
       if (onCartUpdate) await onCartUpdate();
     } catch (error) {
-      console.error("Error clearing cart:", error);
+      console.error("CartModal: Error clearing cart:", error);
     }
   };
 
@@ -100,9 +106,7 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
     <>
       {isOpen && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-80 z-50 flex items-center justify-center p-4 animate-fadeIn">
-          {/* Full Page Container */}
           <div className="bg-white w-full max-w-5xl h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 scale-95 hover:scale-100">
-            {/* Top Bar */}
             <div className="p-6 bg-gradient-to-r from-green-600 to-green-800 text-white flex items-center justify-between">
               <h2 className="text-3xl font-bold tracking-tight">
                 Your Fresh Cart
@@ -114,10 +118,7 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
                 <X size={28} />
               </button>
             </div>
-
-            {/* Main Content */}
             <div className="flex-1 flex overflow-hidden">
-              {/* Left: Items */}
               <div className="w-2/3 p-8 overflow-y-auto bg-gray-100">
                 {cartItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center">
@@ -131,68 +132,78 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {cartItems.map((item) => (
-                      <div
-                        key={item.product._id}
-                        className="grid grid-cols-5 gap-4 items-center bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        {/* Image */}
-                        <div className="col-span-1">
-                          <img
-                            src={
-                              item.product.image || "/api/placeholder/100/100"
-                            }
-                            alt={item.product.name}
-                            className="w-20 h-20 object-cover rounded-md"
-                          />
+                    {cartItems.map((item) => {
+                      const imageUrl = item.product.image
+                        ? `${BACKEND_URL}${item.product.image}`
+                        : farmer;
+                      console.log(
+                        `CartModal: Image for ${item.product.name}: ${imageUrl}, Raw image field: ${item.product.image}`
+                      );
+                      return (
+                        <div
+                          key={item.product._id}
+                          className="grid grid-cols-5 gap-4 items-center bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="col-span-1">
+                            <img
+                              src={imageUrl}
+                              alt={item.product.name}
+                              className="w-20 h-20 object-cover rounded-md"
+                              onError={(e) => {
+                                console.error(
+                                  `CartModal: Failed to load image for ${item.product.name}: ${imageUrl}`
+                                );
+                                e.target.src = farmer;
+                              }}
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <h3 className="text-lg font-semibold text-gray-800">
+                              {item.product.name}
+                            </h3>
+                            <p className="text-gray-600 text-sm">
+                              NPR {item.product.price.toFixed(2)} each
+                            </p>
+                          </div>
+                          <div className="col-span-1 flex items-center justify-center gap-3">
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.product._id, -1)
+                              }
+                              className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
+                              disabled={item.quantity <= 1}
+                            >
+                              <MinusCircle size={24} />
+                            </button>
+                            <span className="text-lg font-medium text-gray-800">
+                              {item.quantity}
+                            </span>
+                            <button
+                              onClick={() =>
+                                updateQuantity(item.product._id, 1)
+                              }
+                              className="text-green-600 hover:text-green-800 transition-colors"
+                            >
+                              <PlusCircle size={24} />
+                            </button>
+                          </div>
+                          <div className="col-span-1 flex items-center justify-end gap-4">
+                            <span className="text-lg font-semibold text-gray-800">
+                              NPR {getItemTotal(item)}
+                            </span>
+                            <button
+                              onClick={() => removeItem(item.product._id)}
+                              className="text-red-500 hover:text-red-700 transition-colors"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
                         </div>
-                        {/* Name */}
-                        <div className="col-span-2">
-                          <h3 className="text-lg font-semibold text-gray-800">
-                            {item.product.name}
-                          </h3>
-                          <p className="text-gray-600 text-sm">
-                            NPR {item.product.price.toFixed(2)} each
-                          </p>
-                        </div>
-                        {/* Quantity */}
-                        <div className="col-span-1 flex items-center justify-center gap-3">
-                          <button
-                            onClick={() => updateQuantity(item.product._id, -1)}
-                            className="text-green-600 hover:text-green-800 transition-colors disabled:opacity-50"
-                            disabled={item.quantity <= 1}
-                          >
-                            <MinusCircle size={24} />
-                          </button>
-                          <span className="text-lg font-medium text-gray-800">
-                            {item.quantity}
-                          </span>
-                          <button
-                            onClick={() => updateQuantity(item.product._id, 1)}
-                            className="text-green-600 hover:text-green-800 transition-colors"
-                          >
-                            <PlusCircle size={24} />
-                          </button>
-                        </div>
-                        {/* Total & Remove */}
-                        <div className="col-span-1 flex items-center justify-end gap-4">
-                          <span className="text-lg font-semibold text-gray-800">
-                            NPR {getItemTotal(item)}
-                          </span>
-                          <button
-                            onClick={() => removeItem(item.product._id)}
-                            className="text-red-500 hover:text-red-700 transition-colors"
-                          >
-                            <X size={20} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
-
-              {/* Right: Summary */}
               <div className="w-1/3 p-8 bg-white border-l border-gray-200 flex flex-col justify-between">
                 <div>
                   <h3 className="text-xl font-semibold text-gray-800 mb-6">
@@ -238,14 +249,3 @@ const CartModal = ({ isOpen, setIsOpen, onCartUpdate }) => {
 };
 
 export default CartModal;
-
-/* Add this to your global CSS (e.g., index.css) for the animation */
-// const styles = `
-//   @keyframes fadeIn {
-//     from { opacity: 0; }
-//     to { opacity: 1; }
-//   }
-//   .animate-fadeIn {
-//     animation: fadeIn 0.3s ease-in-out;
-//   }
-// `;s

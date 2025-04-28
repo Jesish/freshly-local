@@ -4,14 +4,14 @@ const CartSchema = new mongoose.Schema(
   {
     consumer: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User", 
+      ref: "User",
       required: true,
     },
     items: [
       {
         product: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Product", 
+          ref: "Product",
           required: true,
         },
         quantity: {
@@ -28,6 +28,7 @@ const CartSchema = new mongoose.Schema(
           ref: "User",
           required: true,
         },
+        unit: { type: String, enum: ["kg", "dozen", "piece"], required: true },
       },
     ],
   },

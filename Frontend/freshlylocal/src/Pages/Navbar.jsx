@@ -1,4 +1,3 @@
-// C:\Users\CHME\Desktop\freshly-local\frontend\src\components\Navbar.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Home, User, ShoppingCart, MessageSquare, Leaf } from "lucide-react";
@@ -13,7 +12,7 @@ const Navbar = ({ onCartUpdate }) => {
   const [cartCount, setCartCount] = useState(0);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMessagesOpen, setIsMessagesOpen] = useState(false);
-  const [openChats, setOpenChats] = useState([]); // Track open chat popups
+  const [openChats, setOpenChats] = useState([]);
 
   useEffect(() => {
     if (token) {
@@ -24,7 +23,7 @@ const Navbar = ({ onCartUpdate }) => {
   const fetchCartCount = async () => {
     try {
       const { data } = await axios.get("http://localhost:5000/api/getcart", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}`},
       });
       setCartCount(data.items ? data.items.length : 0);
     } catch (error) {
@@ -39,14 +38,12 @@ const Navbar = ({ onCartUpdate }) => {
     }
   }, [onCartUpdate]);
 
-  // Function to open a chat
   const handleOpenChat = (user) => {
     if (!openChats.find((chat) => chat.id === user.id)) {
       setOpenChats([...openChats, user]);
     }
   };
 
-  // Function to close a chat
   const handleCloseChat = (userId) => {
     setOpenChats(openChats.filter((chat) => chat.id !== userId));
   };
@@ -69,16 +66,10 @@ const Navbar = ({ onCartUpdate }) => {
               Start Selling
             </button>
             <button
-              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               onClick={() => navigate("/login")}
             >
               Login
-            </button>
-            <button
-              className="text-gray-600 hover:text-gray-800"
-              onClick={() => navigate("/cart")}
-            >
-              <ShoppingCart className="w-6 h-6" />
             </button>
           </div>
         ) : (
@@ -129,7 +120,6 @@ const Navbar = ({ onCartUpdate }) => {
         setIsOpen={setIsMessagesOpen}
         onOpenChat={handleOpenChat}
       />
-      {/* Render all open chats */}
       {openChats.map((chat) => (
         <ChatPopup
           key={chat.id}

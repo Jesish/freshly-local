@@ -41,7 +41,7 @@ const Messages = () => {
         return {
           id: conv._id,
           name: otherParticipant?.fullName || "Unknown User",
-          avatar: otherParticipant?.farmImage || "/api/placeholder/40/40",
+          avatar: otherParticipant?.profileImage || "/api/placeholder/40/40",
           lastMessage: conv.lastMessage
             ? conv.lastMessage.text
             : "No messages yet",
@@ -114,7 +114,10 @@ const Messages = () => {
                   className="p-4 flex items-center gap-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <img
-                    src={conv.avatar}
+                    src={
+                      `http://localhost:5000${conv.avatar}` ||
+                      "/api/placeholder/32/32"
+                    }
                     alt={conv.name}
                     className="w-12 h-12 rounded-full object-cover border border-gray-200"
                   />

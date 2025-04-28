@@ -5,8 +5,11 @@ const Transaction = require("../models/Transaction");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
-
+const rateLimit = require("express-rate-limit");
 const uploadDir = path.join(__dirname, "..", "..", "uploads");
+const nodemailer = require("nodemailer");
+const express = require("express");
+const router = express.Router();
 
 // Ensure the folder exists
 if (!fs.existsSync(uploadDir)) {
@@ -24,83 +27,86 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Sign up user
 const signup = async (req, res) => {
-  upload.fields([{ name: "profileImage" }, { name: "farmImage" }])(
-    req,
-    res,
-    async (err) => {
-      if (err) {
-        console.error("Multer error:", err);
-        return res.status(500).json({ msg: "File upload error" });
+  upload.fields([
+    { name: "profileImage", maxCount: 1 },
+    { name: "farmImage", maxCount: 1 },
+    { name: "verificationDocuments", maxCount: 5 },
+  ])(req, res, async (err) => {
+    if (err) {
+      console.error("Multer error:", err);
+      return res.status(500).json({ msg: "File upload error" });
+    }
+
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      password,
+      farmName,
+      farmLocation,
+      userType,
+    } = req.body;
+
+    try {
+      let user = await User.findOne({ email });
+      if (user) {
+        return res.status(400).json({ msg: "User already exists" });
       }
 
-      console.log("req.body:", req.body);
-      console.log("req.files:", req.files);
-
-      const {
-        fullName,
-        email,
-        phoneNumber,
-        password,
-        farmName,
-        farmLocation,
-        userType,
-      } = req.body;
-
-      try {
-        let user = await User.findOne({ email });
-        if (user) {
-          return res.status(400).json({ msg: "User already exists" });
-        }
-
-        if (userType === "farmer" && (!req.files || !req.files["farmImage"])) {
+      if (userType === "farmer") {
+        if (!req.files || !req.files["farmImage"]) {
           return res
             .status(400)
             .json({ msg: "Farm image is required for farmers" });
         }
-
-        const userData = {
-          fullName,
-          email,
-          phoneNumber,
-          password, // Hashed by pre-save middleware
-          userType,
-          farmLocation: JSON.parse(farmLocation),
-        };
-
-        if (farmName) userData.farmName = farmName;
-        if (req.files && req.files["profileImage"]) {
-          userData.profileImage = `/uploads/${req.files["profileImage"][0].filename}`;
-          console.log("Setting profileImage:", userData.profileImage); // Debug
+        if (!req.files || !req.files["verificationDocuments"]) {
+          return res
+            .status(400)
+            .json({ msg: "At least one verification document is required" });
         }
-        if (req.files && req.files["farmImage"]) {
-          userData.farmImage = `/uploads/${req.files["farmImage"][0].filename}`;
-          console.log("Setting farmImage:", userData.farmImage); // Debug
-        }
-
-        user = new User(userData);
-        await user.save();
-
-        console.log("Saved user:", user);
-
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-          expiresIn: "1h",
-        });
-
-        res.status(201).json({
-          msg: "User created successfully",
-          token,
-        });
-      } catch (error) {
-        console.error("Signup error:", error);
-        res.status(500).json({ msg: "Server error" });
       }
+
+      const userData = {
+        fullName,
+        email,
+        phoneNumber,
+        password,
+        userType,
+        farmLocation: farmLocation ? JSON.parse(farmLocation) : undefined,
+        isVerified: userType === "farmer" ? false : true, // Farmers need approval
+      };
+
+      if (farmName) userData.farmName = farmName;
+      if (req.files && req.files["profileImage"]) {
+        userData.profileImage = `/Uploads/${req.files["profileImage"][0].filename}`;
+      }
+      if (req.files && req.files["farmImage"]) {
+        userData.farmImage = `/Uploads/${req.files["farmImage"][0].filename}`;
+      }
+      if (req.files && req.files["verificationDocuments"]) {
+        userData.verificationDocuments = req.files["verificationDocuments"].map(
+          (file) => `/Uploads/${file.filename}`
+        );
+      }
+
+      user = new User(userData);
+      await user.save();
+
+      res.status(201).json({
+        msg:
+          userType === "farmer"
+            ? "Account created, awaiting admin approval"
+            : "User created successfully",
+      });
+    } catch (error) {
+      console.error("Signup error:", error);
+      res.status(500).json({ msg: "Server error" });
     }
-  );
+  });
 };
 
-// Login user
+// Login
 const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -115,17 +121,25 @@ const login = async (req, res) => {
       return res.status(400).json({ msg: "Invalid credentials" });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "24h",
-    });
+    if (user.userType === "farmer" && !user.isVerified) {
+      return res.status(403).json({ msg: "You are not yet verified" });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, userType: user.userType },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
 
     res.json({
       msg: "Login successful",
       token,
+      userId: user._id,
       userType: user.userType,
+      isVerified: user.isVerified,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Login error:", error);
     res.status(500).json({ msg: "Server error" });
   }
 };
@@ -162,7 +176,7 @@ const updateProfile = async (req, res) => {
       email,
       phoneNumber,
       farmName,
-      farmDescription,
+      farmdescription,
       farmLocation,
     } = req.body;
 
@@ -180,7 +194,7 @@ const updateProfile = async (req, res) => {
       // Update farmer-specific details
       if (user.userType === "farmer") {
         if (farmName) user.farmName = farmName;
-        if (farmDescription) user.farmdescription = farmDescription; // Matches schema
+        if (farmdescription) user.farmdescription = farmdescription; // Matches schema
         if (farmLocation) {
           const parsedLocation = JSON.parse(farmLocation);
           user.farmLocation = {
@@ -239,13 +253,16 @@ const getAllFarmers = async (req, res) => {
   }
 };
 
+// Get All Farms (Consumer Side)
 const getAllFarms = async (req, res) => {
   try {
-    // Fetch all users who are farmers and have farm details
-    const farms = await User.find({ userType: "farmer" });
+    const farms = await User.find({
+      userType: "farmer",
+      isVerified: true,
+    }).select("fullName farmName farmLocation farmImage");
     res.json(farms);
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching farms:", error);
     res.status(500).json({ msg: "Server error" });
   }
 };
@@ -257,6 +274,7 @@ const getFarmById = async (req, res) => {
     if (!farm) {
       return res.status(404).json({ message: "Farm not found" });
     }
+    console.log("Farm profileImage:", farm.profileImage); // Added for debugging
 
     res.json({
       farmName: farm.farmName,
@@ -266,6 +284,9 @@ const getFarmById = async (req, res) => {
       farmerName: farm.fullName,
       farmerEmail: farm.email,
       farmerPhone: farm.phoneNumber,
+      profileImage: farm.profileImage
+        ? `http://localhost:5000${farm.profileImage}`
+        : "/api/placeholder/32/32", // Changed to include profileImage
     });
   } catch (error) {
     console.error(error);
@@ -326,8 +347,6 @@ const getFarmerStats = async (req, res) => {
   }
 };
 
-// C:\Users\CHME\Desktop\freshly-local\Backend\src\controllers\farmerController.js
-
 const getFarmerProfile = async (req, res) => {
   try {
     // Fetch the authenticated farmer's data by their ID (from protect middleware)
@@ -359,6 +378,116 @@ const getFarmerProfile = async (req, res) => {
   }
 };
 
+// Reset Password
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: "Email not found" });
+    }
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.otp = otp;
+    user.otpExpires = Date.now() + 60 * 1000; // 60 seconds
+    await user.save();
+    const mailOptions = {
+      to: email,
+      from: process.env.EMAIL_USER,
+      subject: "Freshly Local Password Reset OTP",
+      text: `Your OTP is: ${otp}\nThis OTP is valid for 60 seconds.`,
+    };
+    console.log("Email User:", process.env.EMAIL_USER);
+    console.log("Email Pass:", process.env.EMAIL_PASS);
+    const transporter = require("nodemailer").createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ msg: "OTP sent to your email" });
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+const verifyOTP = async (req, res) => {
+  const { email, otp } = req.body;
+  try {
+    const user = await User.findOne({
+      email,
+      otp,
+      otpExpires: { $gt: Date.now() },
+    });
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid or expired OTP" });
+    }
+    res.status(200).json({ msg: "OTP verified successfully" });
+  } catch (error) {
+    console.error("Verify OTP Error:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    user.password = password; // Hashed by pre-save middleware
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+    res.status(200).json({ msg: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Admin: Get Pending Farmers
+const getPendingFarmers = async (req, res) => {
+  try {
+    const farmers = await User.find({
+      userType: "farmer",
+      isVerified: false,
+    }).select("fullName email farmName farmImage verificationDocuments");
+    res.json(farmers);
+  } catch (error) {
+    console.error("Error fetching pending farmers:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Admin: Approve/Reject Farmer
+const verifyFarmer = async (req, res) => {
+  try {
+    const { userId, action } = req.body;
+    const farmer = await User.findById(userId);
+    if (!farmer || farmer.userType !== "farmer") {
+      return res.status(404).json({ msg: "Farmer not found" });
+    }
+
+    if (action === "approve") {
+      farmer.isVerified = true;
+      await farmer.save();
+      res.json({ msg: "Farmer approved" });
+    } else if (action === "reject") {
+      await farmer.deleteOne();
+      res.json({ msg: "Farmer rejected" });
+    } else {
+      res.status(400).json({ msg: "Invalid action" });
+    }
+  } catch (error) {
+    console.error("Error verifying farmer:", error);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
 module.exports = {
   signup,
   login,
@@ -370,6 +499,11 @@ module.exports = {
   getFarmerStats,
   getFarmerProfile,
   updateProfile,
+  forgotPassword,
+  verifyOTP,
+  resetPassword,
+  getPendingFarmers,
+  verifyFarmer,
 };
 
 //farmer id each ..params totake form url

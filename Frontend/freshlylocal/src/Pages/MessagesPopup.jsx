@@ -43,7 +43,7 @@ const MessagesPopup = ({ isOpen, setIsOpen }) => {
         return {
           id: conv._id,
           name: otherParticipant?.fullName || "Unknown User",
-          avatar: otherParticipant?.farmImage || "/api/placeholder/40/40",
+          avatar: otherParticipant?.profileImage || "/api/placeholder/40/40",
           lastMessage: conv.lastMessage
             ? conv.lastMessage.text
             : "No messages yet",
@@ -132,7 +132,10 @@ const MessagesPopup = ({ isOpen, setIsOpen }) => {
               >
                 <div className="relative">
                   <img
-                    src={conv.avatar}
+                    src={
+                      `http://localhost:5000${conv.avatar}` ||
+                      "/api/placeholder/32/32"
+                    }
                     alt={conv.name}
                     className="w-12 h-12 rounded-full object-cover"
                   />

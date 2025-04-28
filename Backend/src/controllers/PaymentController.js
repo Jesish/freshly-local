@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const Transaction = require("../models/Transaction");
 const Product = require("../models/Product");
+const Cart = require("../models/cart");
 require("dotenv").config();
 const mongoose = require("mongoose");
 
@@ -9,51 +10,113 @@ const generateSignature = (data, secret) => {
   return crypto.createHmac("sha256", secret).update(data).digest("base64");
 };
 
-// Initiate Payment
+// Initiate Payment (Checkout from Cart)
 const initiatePayment = async (req, res) => {
-  const { cart, userId, totalAmount } = req.body;
-  console.log("Cart:", cart);
-  const transactionUuid = Date.now().toString();
-  console.log(totalAmount);
+  try {
+    const { cart, userId, totalAmount, deliveryLocation } = req.body;
+    if (
+      !cart ||
+      !userId ||
+      !totalAmount ||
+      !deliveryLocation ||
+      !deliveryLocation.address
+    ) {
+      return res.status(400).json({
+        msg: "Cart, userId, totalAmount, and deliveryLocation.address are required",
+      });
+    }
 
-  const paymentData = {
-    amount: totalAmount.toString(),
-    tax_amount: "0",
-    total_amount: totalAmount.toString(),
-    transaction_uuid: transactionUuid,
-    product_code: process.env.ESEWA_MERCHANT_ID,
-    product_service_charge: "0",
-    product_delivery_charge: "0",
-    success_url: process.env.SUCCESS_URL,
-    failure_url: process.env.FAILURE_URL,
-    signed_field_names: "total_amount,transaction_uuid,product_code",
-  };
+    // Validate cart items and stock
+    for (const item of cart) {
+      const product = await Product.findById(item.product._id);
+      if (!product) {
+        return res
+          .status(404)
+          .json({ msg: `Product ${item.product.name} not found` });
+      }
+      if (product.stock < item.quantity) {
+        return res.status(400).json({
+          msg: `Insufficient stock: Only ${product.stock} ${product.unit} available for ${product.name}`,
+        });
+      }
+    }
 
-  const dataString = `total_amount=${paymentData.total_amount},transaction_uuid=${paymentData.transaction_uuid},product_code=${paymentData.product_code}`;
-  const signature = generateSignature(dataString, process.env.ESEWA_SECRET_KEY);
-  paymentData.signature = signature;
+    const transactionUuid = `TX-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
-  const transaction = new Transaction({
-    consumer: userId,
-    items: cart,
-    totalAmount,
-    transactionUuid,
-    status: "pending", // Add initial status
-    isCartOrder: true, // Mark as cart order
-  });
-  await transaction.save();
+    const paymentData = {
+      amount: totalAmount.toString(),
+      tax_amount: "0",
+      total_amount: totalAmount.toString(),
+      transaction_uuid: transactionUuid,
+      product_code: process.env.ESEWA_MERCHANT_ID,
+      product_service_charge: "0",
+      product_delivery_charge: "0",
+      success_url: process.env.SUCCESS_URL,
+      failure_url: process.env.FAILURE_URL,
+      signed_field_names: "total_amount,transaction_uuid,product_code",
+    };
 
-  res.json(paymentData);
+    const dataString = `total_amount=${paymentData.total_amount},transaction_uuid=${paymentData.transaction_uuid},product_code=${paymentData.product_code}`;
+    const signature = generateSignature(
+      dataString,
+      process.env.ESEWA_SECRET_KEY
+    );
+    paymentData.signature = signature;
+
+    const transaction = new Transaction({
+      consumer: userId,
+      items: cart.map((item) => ({
+        product: {
+          _id: item.product._id,
+          name: item.product.name,
+          price: item.product.price,
+        },
+        quantity: item.quantity,
+        price: item.price,
+        farm_id: item.farm_id,
+        unit: item.unit,
+      })),
+      deliveryLocation,
+      totalAmount,
+      transactionUuid,
+      status: "Pending",
+    });
+
+    // Reduce stock
+    for (const item of cart) {
+      const product = await Product.findById(item.product._id);
+      product.stock -= item.quantity;
+      await product.save();
+    }
+
+    await transaction.save();
+
+    // Clear cart
+    await Cart.findOneAndUpdate({ consumer: userId }, { items: [] });
+
+    res.json(paymentData);
+  } catch (error) {
+    console.error("Error initiating payment:", error);
+    res.status(500).json({ msg: "Server error", error: error.message });
+  }
 };
 
-// Single-Item Payment
+// Single-Item Payment ("Buy Now")
 const createSingleItemPayment = async (req, res) => {
   try {
-    const { productId } = req.body;
+    const { productId, quantity = 1, deliveryLocation } = req.body;
     const userId = req.user._id;
 
-    if (!productId) {
-      return res.status(400).json({ msg: "Product ID is required" });
+    if (!productId || !deliveryLocation || !deliveryLocation.address) {
+      return res
+        .status(400)
+        .json({ msg: "Product ID and deliveryLocation.address are required" });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({ msg: "Invalid product ID" });
     }
 
     const product = await Product.findById(productId);
@@ -61,8 +124,22 @@ const createSingleItemPayment = async (req, res) => {
       return res.status(404).json({ msg: "Product not found" });
     }
 
-    const totalAmount = product.price;
-    const transactionUuid = Date.now().toString();
+    if (!product.unit) {
+      product.unit = "kg";
+      await product.save();
+      console.log(`Updated product ${product.name} with unit: kg`);
+    }
+
+    if (product.stock < quantity) {
+      return res.status(400).json({
+        msg: `Insufficient stock: Only ${product.stock} ${product.unit} available for ${product.name}`,
+      });
+    }
+
+    const totalAmount = product.price * quantity;
+    const transactionUuid = `TX-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
 
     const paymentData = {
       amount: totalAmount.toString(),
@@ -93,29 +170,32 @@ const createSingleItemPayment = async (req, res) => {
             name: product.name,
             price: product.price,
           },
-          quantity: 1,
+          quantity,
           price: product.price,
           farm_id: product.farmer,
+          unit: product.unit,
         },
       ],
+      deliveryLocation,
       totalAmount,
       transactionUuid,
-      status: "pending",
-      // Add initial status
-      // farmId: product.farmer,
-      isCartOrder: true, // Mark as cart order
+      status: "Pending",
     });
+
+    // Reduce stock
+    product.stock -= quantity;
+    await product.save();
+
     await transaction.save();
 
     res.json(paymentData);
   } catch (error) {
     console.error("Error creating single-item payment:", error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error", error: error.message });
   }
 };
 
 // Verify Payment
-// C:\Users\CHME\Desktop\freshly-local\Backend\src\controllers\PaymentController.js
 const verifyPayment = async (req, res) => {
   const { data } = req.query;
 
@@ -158,27 +238,22 @@ const verifyPayment = async (req, res) => {
       status === "COMPLETE" &&
       transaction.totalAmount === parseFloat(total_amount)
     ) {
-      transaction.status = "completed";
+      transaction.status = "Delivered";
       transaction.updatedAt = Date.now();
-      // Set a default delivery date (e.g., 3 days from now)
       transaction.deliveryDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
       await transaction.save();
 
-      // Notify farmer (placeholder)
-      console.log(
-        `Order ${transaction_uuid} completed. Notify farmer ${transaction.farmId}`
+      // Clear cart if it was a cart order
+      await Cart.findOneAndUpdate(
+        { consumer: transaction.consumer },
+        { items: [] }
       );
 
-      const cartUpdate = await Cart.findOneAndUpdate(
-        { consumer: transaction.consumer },
-        { items: [] },
-        { new: true }
-      );
       return res.redirect(
-        `${process.env.SUCCESS_URL}?farmId=${transaction.farmId}`
+        `${process.env.SUCCESS_URL}?transactionUuid=${transaction_uuid}`
       );
     } else {
-      transaction.status = "unpaid";
+      transaction.status = "Unpaid";
       await transaction.save();
       return res.redirect(process.env.FAILURE_URL);
     }

@@ -11,7 +11,7 @@ const getConversations = async (req, res) => {
     const conversations = await Conversation.find({
       participants: userId,
     })
-      .populate("participants", "fullName farmImage userType")
+      .populate("participants", "fullName farmImage profileImage userType")
       .populate("lastMessage")
       .sort({ updatedAt: -1 });
 
@@ -47,8 +47,8 @@ const getMessages = async (req, res) => {
     }
 
     const messages = await Message.find({ conversationId })
-      .populate("sender", "fullName farmImage")
-      .populate("recipient", "fullName farmImage")
+      .populate("sender", "fullName farmImage profileImage")
+      .populate("recipient", "fullName farmImage profileImage")
       .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
@@ -95,8 +95,8 @@ const sendMessage = async (req, res) => {
     await conversation.save();
 
     const populatedMessage = await Message.findById(message._id)
-      .populate("sender", "fullName farmImage")
-      .populate("recipient", "fullName farmImage");
+      .populate("sender", "fullName farmImage profileImage")
+      .populate("recipient", "fullName farmImage profileImage");
 
     // Emit message to the conversation room
     io.to(conversation._id.toString()).emit("newMessage", {
@@ -131,7 +131,9 @@ const editMessage = async (req, res) => {
     }
 
     if (message.sender.toString() !== userId.toString()) {
-      return res.status(403).json({ message: "You can only edit your own messages" });
+      return res
+        .status(403)
+        .json({ message: "You can only edit your own messages" });
     }
 
     message.text = text;
@@ -139,8 +141,8 @@ const editMessage = async (req, res) => {
     await message.save();
 
     const populatedMessage = await Message.findById(messageId)
-      .populate("sender", "fullName farmImage")
-      .populate("recipient", "fullName farmImage");
+      .populate("sender", "fullName farmImage profileImage")
+      .populate("recipient", "fullName farmImage profileImage");
 
     io.to(message.conversationId.toString()).emit("messageEdited", {
       ...populatedMessage._doc,
@@ -171,7 +173,9 @@ const deleteMessage = async (req, res) => {
     }
 
     if (message.sender.toString() !== userId.toString()) {
-      return res.status(403).json({ message: "You can only delete your own messages" });
+      return res
+        .status(403)
+        .json({ message: "You can only delete your own messages" });
     }
 
     const conversationId = message.conversationId;
@@ -191,5 +195,5 @@ module.exports = {
   getMessages,
   sendMessage,
   editMessage,
-  deleteMessage
+  deleteMessage,
 };

@@ -80,12 +80,10 @@ const Order = () => {
 
       setOrders(
         orders.map((o) =>
-          o.transactionUuid === selectedOrder.transactionUuid
-            ? { ...o, ...updates }
-            : o
+          o.transactionUuid === selectedOrder.transactionUuid ? data : o
         )
       );
-      setSelectedOrder({ ...selectedOrder, ...updates });
+      setSelectedOrder(data);
       setSuccess("Order updated successfully!");
       setTimeout(() => setSuccess(null), 3000);
     } catch (error) {
@@ -97,12 +95,15 @@ const Order = () => {
 
   const openModal = (order) => {
     setSelectedOrder(order);
+    const farmerItems = order.items.filter(
+      (item) => item.farm_id === localStorage.getItem("userId")
+    );
     setEditDeliveryDate(
-      order.deliveryDate
-        ? new Date(order.deliveryDate).toISOString().split("T")[0]
+      farmerItems[0]?.deliveryDate
+        ? new Date(farmerItems[0].deliveryDate).toISOString().split("T")[0]
         : ""
     );
-    setEditStatus(order.status || "Pending");
+    setEditStatus(farmerItems[0]?.status || "Pending");
     setError(null);
     setSuccess(null);
   };
@@ -118,9 +119,8 @@ const Order = () => {
           Manage Your Orders
         </h1>
 
-        {/* Status Tabs */}
         <div className="flex gap-2 mb-6">
-          {["All", "Pending", "On the way", "Delivered", "Unpaid"].map(
+          {["All", "Pending", "On the Way", "Delivered", "Unpaid"].map(
             (status) => (
               <button
                 key={status}
@@ -137,7 +137,6 @@ const Order = () => {
           )}
         </div>
 
-        {/* Orders Table */}
         <div className="bg-white rounded-xl shadow-md overflow-x-auto">
           <table className="w-full min-w-max">
             <thead className="bg-gray-50">
@@ -148,6 +147,7 @@ const Order = () => {
                   "Products",
                   "Order Date",
                   "Delivery Date",
+                  "Delivery Location",
                   "Status",
                   "Actions",
                 ].map((head) => (
@@ -162,60 +162,68 @@ const Order = () => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {orders.length > 0 ? (
-                orders.map((order) => (
-                  <tr
-                    key={order.transactionUuid}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      #{order.transactionUuid?.slice(-6) || "N/A"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.consumerName || "Unknown"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.items?.map((item, i) => (
-                        <div key={i}>
-                          {item.product?.name || "Unknown"} (
-                          {item.quantity || 0} x NPR{" "}
-                          {(item.price || 0).toFixed(2)})
-                        </div>
-                      )) || "No items"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.createdAt
-                        ? new Date(order.createdAt).toLocaleDateString()
-                        : "N/A"}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {order.deliveryDate
-                        ? new Date(order.deliveryDate).toLocaleDateString()
-                        : "TBD"}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(
-                          order.status
-                        )}`}
-                      >
-                        {order.status || "Unknown"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <button
-                        onClick={() => openModal(order)}
-                        className="p-2 text-green-600 hover:text-green-700"
-                        title="View & Edit Details"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                orders.map((order) => {
+                  const farmerItems = order.items;
+                  const firstItem = farmerItems[0];
+                  return (
+                    <tr
+                      key={order.transactionUuid}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        #{order.transactionUuid?.slice(-6) || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {order.consumerName || "Unknown"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {farmerItems.map((item, i) => (
+                          <div key={i}>
+                            {item.product?.name || "Unknown"} (
+                            {item.quantity || 0} {item.unit})
+                          </div>
+                        )) || "No items"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleDateString()
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {firstItem?.deliveryDate
+                          ? new Date(
+                              firstItem.deliveryDate
+                            ).toLocaleDateString()
+                          : "TBD"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {order.deliveryLocation?.address || "Not specified"}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs ${getStatusStyle(
+                            firstItem?.status
+                          )}`}
+                        >
+                          {firstItem?.status || "Unknown"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <button
+                          onClick={() => openModal(order)}
+                          className="p-2 text-green-600 hover:text-green-700"
+                          title="View & Edit Details"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="px-6 py-4 text-center text-gray-500"
                   >
                     No orders found.
@@ -240,11 +248,9 @@ const Order = () => {
           </div>
         </div>
 
-        {/* Advanced Order Details Modal */}
         {selectedOrder && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300">
-              {/* Header */}
               <div className="flex justify-between items-center p-6 border-b border-gray-200">
                 <h3 className="text-2xl font-bold text-gray-900">
                   Order #{selectedOrder.transactionUuid?.slice(-6) || "N/A"}
@@ -257,9 +263,7 @@ const Order = () => {
                 </button>
               </div>
 
-              {/* Body */}
               <div className="p-6 space-y-6">
-                {/* Messages */}
                 {error && (
                   <div className="flex items-center gap-2 p-4 bg-red-50 text-red-700 rounded-lg">
                     <AlertCircle className="w-5 h-5" />
@@ -273,7 +277,6 @@ const Order = () => {
                   </div>
                 )}
 
-                {/* Customer Info */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">
                     Customer Information
@@ -284,7 +287,7 @@ const Order = () => {
                         Customer Name
                       </p>
                       <p className="text-gray-900">
-                        {selectedOrder.consumerName || "Unknown"}
+                        {selectedOrder.consumerName || "pending"}
                       </p>
                     </div>
                     <div>
@@ -299,10 +302,18 @@ const Order = () => {
                           : "N/A"}
                       </p>
                     </div>
+                    <div className="sm:col-span-2">
+                      <p className="text-sm text-gray-600 font-medium">
+                        Delivery Location
+                      </p>
+                      <p className="text-gray-900">
+                        {selectedOrder.deliveryLocation?.address ||
+                          "Not specified"}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Editable Fields */}
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">
                     Order Details
@@ -328,7 +339,7 @@ const Order = () => {
                         onChange={(e) => setEditStatus(e.target.value)}
                         className="mt-1 w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                       >
-                        {["Pending", "On the way", "Delivered", "Unpaid"].map(
+                        {["Pending", "On the Way", "Delivered", "Unpaid"].map(
                           (s) => (
                             <option key={s} value={s}>
                               {s}
@@ -340,31 +351,34 @@ const Order = () => {
                   </div>
                 </div>
 
-                {/* Products */}
                 <div>
                   <h4 className="text-lg font-semibold text-gray-800 mb-3">
-                    Products
+                    Your Products
                   </h4>
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    {selectedOrder.items?.map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between items-center py-2 border-b last:border-b-0"
-                      >
-                        <span className="text-gray-900">
-                          {item.product?.name || "Unknown"} (x
-                          {item.quantity || 0})
-                        </span>
-                        <span className="text-gray-700">
-                          NPR {(item.price || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    )) || <p className="text-gray-500">No items</p>}
+                    {selectedOrder.items
+                      .filter(
+                        (item) =>
+                          item.farm_id === localStorage.getItem("userId")
+                      )
+                      .map((item, i) => (
+                        <div
+                          key={i}
+                          className="flex justify-between items-center py-2 border-b last:border-b-0"
+                        >
+                          <span className="text-gray-900">
+                            {item.product?.name || "Unknown"} (x
+                            {item.quantity || 0} {item.unit})
+                          </span>
+                          <span className="text-gray-700">
+                            NPR {(item.price * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      )) || <p className="text-gray-500">No items</p>}
                   </div>
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="p-6 border-t border-gray-200 flex justify-end gap-4">
                 <button
                   onClick={() => setSelectedOrder(null)}
